@@ -217,8 +217,7 @@ RoadPulse complements existing road-safety reporting and accident-data systems. 
 
 ## Team
 
-- _Add team name and members here_
+KingKong
 
-## License
 
-_Add a license (for example MIT) before publishing._
+
