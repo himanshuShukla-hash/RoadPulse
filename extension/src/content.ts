@@ -1,15 +1,13 @@
 // RoadPulse 100% Client-Side Google Maps In-Page Companion
-// 1. Removed redundant safety preference slider
-// 2. Full Rohini hazard dataset integration
-// 3. One-click route sync & Google Maps destination auto-fill
-// 4. In-HUD Citizen Hazard Reporting (Pothole, Sharp Turn, Accident, etc.) with Photo Verification upload!
+// Locks origin & destination stably without jumping/flashing, suggests 3 distinct safety corridors,
+// and auto-syncs route changes into Google Maps directions!
 
-import { generateRohiniCandidateRoutes, ROHINI_HAZARDS, USER_REPORTED_HAZARDS, RohiniHazard } from './rohiniDataset';
+import { generateRohiniCandidateRoutes, USER_REPORTED_HAZARDS, RohiniHazard } from './rohiniDataset';
 
-console.log('%c[RoadPulse] Live Companion Active on Google Maps', 'color: #D4AF37; font-weight: bold; font-size: 14px;');
+console.log('%c[RoadPulse] Stable Google Maps Route Controller Active', 'color: #D4AF37; font-weight: bold; font-size: 14px;');
 
-let currentOrigin = '';
-let currentDestination = '';
+let lockedOrigin = '';
+let lockedDestination = '';
 let currentRoutes: any[] = [];
 let isNavigating = false;
 let selectedRouteIndex = 0;
@@ -49,18 +47,42 @@ function ensureHudExists(): HTMLElement | null {
       transition: all 0.3s ease !important;
     `;
     document.documentElement.appendChild(hud);
-    renderInitialHud();
+    initRoutes();
   }
   return hud;
 }
 
-function renderInitialHud() {
-  detectGoogleMapsRoute();
-  if (!currentOrigin) {
-    currentOrigin = 'Rithala Metro Station, Bhagwan Mahavir Marg';
-    currentDestination = 'M2K Cinemas Rohini, Sector 3, Delhi';
+// Parse and lock origin/destination stably (clean up URL query params, coords, etc.)
+function parseStableLocations(): { orig: string; dest: string } {
+  const url = window.location.href;
+
+  // 1. From URL: /dir/Origin/Destination/
+  const dirMatch = url.match(/\/dir\/([^\/]+)\/([^\/]+)/);
+  if (dirMatch && dirMatch.length >= 3) {
+    const rawOrig = decodeURIComponent(dirMatch[1].replace(/\+/g, ' ')).replace(/@.*/, '').split('/')[0].trim();
+    const rawDest = decodeURIComponent(dirMatch[2].replace(/\+/g, ' ')).replace(/@.*/, '').split('/')[0].trim();
+    if (rawOrig && rawDest) {
+      return { orig: rawOrig, dest: rawDest };
+    }
   }
-  currentRoutes = generateRohiniCandidateRoutes(currentOrigin, currentDestination);
+
+  // 2. From search inputs
+  const inputs = document.querySelectorAll('input.tactile-searchbox-input, input.searchboxinput, [aria-label*="Choose starting point"], [aria-label*="Choose destination"]') as NodeListOf<HTMLInputElement>;
+  if (inputs.length >= 2 && inputs[0].value.trim() && inputs[1].value.trim()) {
+    return { orig: inputs[0].value.trim(), dest: inputs[1].value.trim() };
+  }
+
+  return {
+    orig: 'Rithala Metro Station, Bhagwan Mahavir Marg',
+    dest: 'M2K Cinemas Rohini, Sector 3, Delhi'
+  };
+}
+
+function initRoutes() {
+  const { orig, dest } = parseStableLocations();
+  lockedOrigin = orig;
+  lockedDestination = dest;
+  currentRoutes = generateRohiniCandidateRoutes(lockedOrigin, lockedDestination);
   renderHudRoutes(currentRoutes);
 }
 
@@ -71,7 +93,7 @@ function syncRouteToGoogleMaps(route: any, index: number) {
 
   const waypoint = CORRIDOR_WAYPOINTS[route.id] || '';
 
-  // Flash Google Maps input visually
+  // Visually flash Google Maps destination input
   const inputs = document.querySelectorAll('input.tactile-searchbox-input, #directions-searchbox-1 input') as NodeListOf<HTMLInputElement>;
   if (inputs && inputs.length >= 2) {
     const destInput = inputs[1];
@@ -84,17 +106,17 @@ function syncRouteToGoogleMaps(route: any, index: number) {
     }, 1200);
   }
 
-  // Smooth URL dispatch
-  if (currentOrigin && currentDestination && waypoint) {
-    const encodedOrigin = encodeURIComponent(currentOrigin);
+  // Seamlessly update Google Maps route with specific corridor waypoint
+  if (lockedOrigin && lockedDestination && waypoint) {
+    const encodedOrigin = encodeURIComponent(lockedOrigin);
     const encodedWaypoint = encodeURIComponent(waypoint);
-    const encodedDest = encodeURIComponent(currentDestination);
+    const encodedDest = encodeURIComponent(lockedDestination);
     const targetUrl = `https://www.google.com/maps/dir/${encodedOrigin}/${encodedWaypoint}/${encodedDest}/`;
     window.history.pushState(null, '', targetUrl);
     window.dispatchEvent(new PopStateEvent('popstate'));
   }
 
-  // Click native card
+  // Click native card if available
   const routeCards = document.querySelectorAll('[data-trip-index], div[role="region"][aria-label*="via"], [id*="section-directions-trip"]');
   if (routeCards && routeCards.length > index) {
     (routeCards[index] as HTMLElement).click();
@@ -102,30 +124,13 @@ function syncRouteToGoogleMaps(route: any, index: number) {
 }
 
 function detectGoogleMapsRoute() {
-  const url = window.location.href;
-  const dirMatch = url.match(/\/dir\/([^\/]+)\/([^\/]+)/);
-  if (dirMatch && dirMatch.length >= 3) {
-    const orig = decodeURIComponent(dirMatch[1].replace(/\+/g, ' ')).replace(/@.*/, '').trim();
-    const dest = decodeURIComponent(dirMatch[2].replace(/\+/g, ' ')).replace(/@.*/, '').trim();
-    if (orig && dest && (orig !== currentOrigin || dest !== currentDestination)) {
-      currentOrigin = orig;
-      currentDestination = dest;
-      currentRoutes = generateRohiniCandidateRoutes(orig, dest);
-      renderHudRoutes(currentRoutes);
-    }
-    return;
-  }
-
-  const inputs = document.querySelectorAll('input.tactile-searchbox-input, input.searchboxinput, [aria-label*="Choose starting point"], [aria-label*="Choose destination"]') as NodeListOf<HTMLInputElement>;
-  if (inputs.length >= 2) {
-    const orig = inputs[0].value.trim();
-    const dest = inputs[1].value.trim();
-    if (orig && dest && (orig !== currentOrigin || dest !== currentDestination)) {
-      currentOrigin = orig;
-      currentDestination = dest;
-      currentRoutes = generateRohiniCandidateRoutes(orig, dest);
-      renderHudRoutes(currentRoutes);
-    }
+  const { orig, dest } = parseStableLocations();
+  // Only update if genuine user navigation change occurred (prevents flickering)
+  if (orig && dest && (orig !== lockedOrigin || dest !== lockedDestination)) {
+    lockedOrigin = orig;
+    lockedDestination = dest;
+    currentRoutes = generateRohiniCandidateRoutes(orig, dest);
+    renderHudRoutes(currentRoutes);
   }
 }
 
@@ -218,10 +223,10 @@ function renderHudRoutes(routes: any[]) {
       </div>
     </div>
 
-    <!-- Origin & Destination -->
-    <div style="font-size: 10px; color: #64748B; margin-bottom: 8px; line-height: 1.3;">
-      From: <strong style="color: #121417;">${currentOrigin.slice(0, 32)}</strong><br/>
-      To: <strong style="color: #121417;">${currentDestination.slice(0, 32)}</strong>
+    <!-- Origin & Destination (Stable locked text) -->
+    <div style="font-size: 10px; color: #64748B; margin-bottom: 8px; line-height: 1.35; background: #F8FAFC; padding: 6px; border-radius: 8px; border: 1px solid #E2E8F0;">
+      <div>From: <strong style="color: #0F172A;">${lockedOrigin.slice(0, 36)}</strong></div>
+      <div>To: <strong style="color: #0F172A;">${lockedDestination.slice(0, 36)}</strong></div>
     </div>
 
     <!-- 3 Distinct Routes with Front Safety Indices -->
@@ -319,7 +324,7 @@ function renderHudRoutes(routes: any[]) {
     </div>
   `;
 
-  // Attach auto-sync click listener
+  // Attach card auto-sync click listener
   hud.querySelectorAll('.rp-route-card').forEach((card) => {
     card.addEventListener('click', () => {
       const idx = parseInt(card.getAttribute('data-idx') || '0');
@@ -327,7 +332,7 @@ function renderHudRoutes(routes: any[]) {
     });
   });
 
-  // Open/close report modal listeners
+  // Modal open/close listeners
   const openReportBtn = document.getElementById('rp-open-report-btn');
   if (openReportBtn) {
     openReportBtn.addEventListener('click', () => {
@@ -371,7 +376,7 @@ function renderHudRoutes(routes: any[]) {
     });
   }
 
-  // Attach live guard listener
+  // Live guard listener
   const btn = document.getElementById('rp-start-nav-btn');
   if (btn) {
     btn.addEventListener('click', () => {
@@ -381,8 +386,8 @@ function renderHudRoutes(routes: any[]) {
   }
 }
 
-// Continuous check for route updates
+// Stable interval check (only updates on actual origin/destination changes)
 setInterval(() => {
   ensureHudExists();
   detectGoogleMapsRoute();
-}, 1500);
+}, 2000);

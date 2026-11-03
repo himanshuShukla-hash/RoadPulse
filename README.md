@@ -1,103 +1,74 @@
-# RoadPulse — Safety-Aware Google Maps Companion Extension (Manifest V3)
+# RoadPulse — Safety-Aware Google Maps Companion Extension
 
-**RoadPulse** is a Chrome extension companion that adds road-safety intelligence directly to a user's navigation workflow. 
+**Turning Near-Misses & Hazard Intelligence into Safer Navigation.**
 
-Instead of replacing Google Maps, RoadPulse answers:  
-> *"Should I take the fastest route, or spend a little more time avoiding known road hazards?"*
-
----
-
-## Architecture Overview
-
-```
-                      ┌──────────────────────────────────────┐
-                      │    Google Maps (Primary Navigation)  │
-                      └──────────────────┬───────────────────┘
-                                         │ Continues ordinary navigation
-                                         ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│               RoadPulse Chrome Extension (Manifest V3)                 │
-├─────────────────────────┬─────────────────────────┬────────────────────┤
-│   Popup User Interface  │ Background Service      │ Content Script     │
-│  (React 18 + TS + Vite) │ Worker (Permitted ops)  │ (Maps Integration) │
-└─────────────────────────┴────────────┬────────────┴────────────────────┘
-                                       │ HTTP / REST
-                                       ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                   RoadPulse Routing & Hazard API                       │
-├────────────────────────────────────────────────────────────────────────┤
-│ • 5-Factor Risk Engine: R_edge = 0.35P + 0.30N + 0.20L + 0.15C         │
-│ • Distance-weighted Route Risk: R_route = Σ(dist_i * R_i) / Σ(dist_i)  │
-│ • Generalized Cost: J(route, λ) = T_norm + (λ * R_norm)                │
-│ • Graph Router: Dijkstra multi-path generation (18 nodes, 27 edges)    │
-└────────────────────────────────────────────────────────────────────────┘
-```
+RoadPulse is a Chrome extension that overlays real-time road-safety intelligence directly onto Google Maps.
 
 ---
 
-## 1. Quick Start: Running the Backend
+## 🌟 Key Features
 
-```bash
-cd server
-npm install
-npm test      # Runs automated unit tests for risk formula & lambda mechanics
-npm start     # Runs on http://localhost:5001
-```
+1. **Popup Location Input with Instant Google Maps Sync:**
+   - Click the RoadPulse extension icon in your Chrome toolbar.
+   - Enter your **Starting Point** and **Destination** (or click one-click quick presets like *Rithala Metro Station ➔ M2K Cinemas Rohini*).
+   - Click **"Start Route on Google Maps"** — Google Maps immediately opens with those exact locations pre-filled!
+
+2. **In-Page Floating Safety HUD:**
+   - Appears automatically in the top-right corner of Google Maps.
+   - Stable, locked origin & destination indicators without flickering or unexpected jumping.
+
+3. **3 Genuinely Distinct Safety Route Corridors:**
+   - **★ Recommended (Fastest):** *CH Bhim Singh Marg ➔ 100 Feet Rd ➔ Outer Ring Rd Express* (`Risk: 56.8/100`)
+   - **Balanced Corridor:** *Bhagwan Mahavir Marg ➔ Sector 3 M2K ➔ Deepali Chowk Bypass* (`Risk: 34.5/100`)
+   - **Safety-Prioritized:** *Rohini Sector 16/17 Calmed Parkway ➔ Greenbelt Avenue ➔ Sector 24* (`Risk: 16.5/100`)
+   - **One-Click Route Switch:** Clicking any card in the HUD instantly auto-fills and re-routes Google Maps through that safety corridor.
+
+4. **Dedicated Rohini Area Hazard Dataset (`rohiniDataset.ts`):**
+   - 15 realistic hazard hotspots across Rohini (e.g. *Mangolpuri Flyover Sinkholes*, *Madhuban Chowk Blind Turn*, *Sultanpuri Dark Stride*, *M2K Cinema Curve*, *Japanese Park Perimeter*, *Dr. BSA Hospital Emergency Cut*).
+
+5. **In-HUD Hazard Reporting (With Photo Proof Verification):**
+   - Click **`+ Report Hazard`** directly in the HUD.
+   - Choose category: *Pothole*, *Sharp Blind Curve*, *Accident-Prone Junction*, *Broken Streetlamp*, or *Near-Miss*.
+   - Upload photo proof with automated geotag & timestamp verification.
+
+6. **Live Driving Safety Guard:**
+   - Click **"Start Live Guard"** while navigating to receive proactive notifications (e.g. *"⚠️ In 400m: High near-miss intersection & sharp curve ahead"*).
 
 ---
 
-## 2. Quick Start: Loading the Chrome Extension
+## 🚀 Installation & Setup in Chrome
 
-1. **Build the extension package:**
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/himanshuShukla-hash/RoadPulse.git
+   cd RoadPulse
+   ```
+
+2. Build the extension bundle:
    ```bash
    cd extension
    npm install
    npm run build
    ```
-   *(This outputs the unpacked extension bundle into `extension/dist/`)*
 
-2. **Load into Google Chrome:**
-   - Open Chrome and navigate to `chrome://extensions/`
-   - Enable **Developer mode** (toggle in the top-right corner).
+3. Load unpacked extension in Google Chrome:
+   - Navigate to `chrome://extensions/` in Chrome.
+   - Toggle **Developer mode** ON (top right corner).
    - Click **"Load unpacked"**.
-   - Select the directory:  
+   - Select the folder:  
      `/Users/himanshushukla/Downloads/RoadPulse/extension/dist`
 
-3. **Pin & Open RoadPulse:**
-   - Click the puzzle piece icon in Chrome's toolbar and pin **RoadPulse**.
-   - Click the RoadPulse icon to open the companion interface.
+4. Pin the **RoadPulse** icon to your Chrome toolbar.
 
 ---
 
-## 3. Demo Walkthrough for Judges
+## 🧭 Live Demo Workflow
 
-1. **Deterministic Demo Corridor:**
-   - Select **Origin**: *Nexus Tech Park (North Hub)*
-   - Select **Destination**: *Grand Market Square (South Hub)*
-   - Click **"Analyze Safety Alternatives"**.
-
-2. **Observe Multi-Path Candidates:**
-   - **Fastest Route:** Direct arterial flyover (Quickest time, but high pothole and near-miss exposure).
-   - **Balanced Route:** Hospital linkway and midtown promenade.
-   - **Safety-Prioritized Route:** Speed-calmed greenbelt and residential corridor (Significantly lower risk score).
-
-3. **Adjust the Safety Preference ($\lambda$) Slider:**
-   - Slide $\lambda = 0.00$: Fastest route wins (minimized travel time).
-   - Slide $\lambda = 0.50$: Balanced candidate wins.
-   - Slide $\lambda = 1.00$: Safety-prioritized candidate wins (minimizing hazards $0.35P + 0.30N + 0.20L + 0.15C$).
-   - Watch the generalized cost $J = T_{\text{norm}} + \lambda \cdot R_{\text{norm}}$ recalculate and re-rank live.
-
-4. **Launch into Google Maps:**
-   - Click **"Continue Route in Google Maps"** to open standard navigation with the selected origin & destination.
-
-5. **Report Citizen Hazard:**
-   - Click the **"Report"** button in the header.
-   - Select a hazard category (Pothole, Near-Miss, Poor Lighting, Dangerous Turn) with severity slider and submit.
-   - The backend immediately logs the hazard into the graph edge and recalculates the candidate routes!
-
----
-
-## 4. Key Limitations & Assumptions
-
-- **Scope:** First version focuses on a deterministic synthetic demonstration area (tech corridor) to guarantee consistent, crash-proof judging evaluations without depending on thousands of crowdsourced reports.
-- **Google Maps Decoupling:** RoadPulse does not manipulate Google Maps internals, inject unverified lines, or scrape private DOM nodes. Google Maps handles ordinary turn-by-turn navigation; RoadPulse provides companion hazard intelligence and risk-cost analysis.
+1. Click the **RoadPulse** icon in your browser toolbar.
+2. Select or enter:
+   - **Origin**: `Rithala Metro Station, Bhagwan Mahavir Marg`
+   - **Destination**: `M2K Cinemas Rohini, Sector 3, Delhi`
+3. Click **"Start Route on Google Maps"**.
+4. Notice that Google Maps loads the directions, and the **RoadPulse HUD** appears on the top right showing 3 alternative corridors with **Safety Risk Scores**.
+5. Click **"Balanced Corridor"** or **"Safety-Prioritized"** — watch Google Maps immediately re-route through that safer corridor!
+6. Click **`+ Report Hazard`** to demonstrate adding a live citizen hazard with photo proof.
