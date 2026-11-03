@@ -1,23 +1,17 @@
 // RoadPulse 100% Client-Side Google Maps In-Page Companion
-// Injects an In-HUD Search Bar directly on Google Maps + 3 Safety Route Corridors + Auto-Fill Sync + Photo Hazard Reporting
+// Uses Rohini Golden Pair: Rithala Metro Station ➔ M2K Cinemas Rohini
+// 3 distinct corridors with instant Google Maps re-routing and in-HUD search bar
 
-import { generateRohiniCandidateRoutes, USER_REPORTED_HAZARDS, RohiniHazard } from './rohiniDataset';
+import { generateRohiniCandidateRoutes, GOLDEN_PAIR, USER_REPORTED_HAZARDS, RohiniHazard } from './rohiniDataset';
 
-console.log('%c[RoadPulse] In-HUD Search Bar & Live Companion Active', 'color: #D4AF37; font-weight: bold; font-size: 14px;');
+console.log('%c[RoadPulse] Golden Pair Route Companion Active', 'color: #D4AF37; font-weight: bold; font-size: 14px;');
 
-let currentOrigin = 'Rithala Metro Station, Bhagwan Mahavir Marg';
-let currentDestination = 'M2K Cinemas Rohini, Sector 3, Delhi';
-let currentRoutes: any[] = [];
+let currentOrigin = GOLDEN_PAIR.origin;
+let currentDestination = GOLDEN_PAIR.destination;
+let currentRoutes = generateRohiniCandidateRoutes();
 let isNavigating = false;
 let selectedRouteIndex = 0;
 let showReportModal = false;
-
-// Corridors to route Google Maps safely
-const CORRIDOR_WAYPOINTS: Record<string, string> = {
-  rohini_route_fastest: 'Outer Ring Rd, Mangolpuri, Delhi',
-  rohini_route_balanced: 'M2K Cinemas Rohini, Sector 3, Delhi',
-  rohini_route_safest: 'Sector 16 Rohini, Delhi'
-};
 
 function ensureHudExists(): HTMLElement | null {
   if (!window.location.href.includes('google.') && !window.location.href.includes('maps')) return null;
@@ -34,7 +28,7 @@ function ensureHudExists(): HTMLElement | null {
       width: 390px !important;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
       border-radius: 18px !important;
-      background: rgba(255, 255, 255, 0.97) !important;
+      background: rgba(255, 255, 255, 0.98) !important;
       backdrop-filter: blur(20px) !important;
       -webkit-backdrop-filter: blur(20px) !important;
       border: 1.5px solid #D4AF37 !important;
@@ -46,14 +40,9 @@ function ensureHudExists(): HTMLElement | null {
       transition: all 0.3s ease !important;
     `;
     document.documentElement.appendChild(hud);
-    initHud();
+    renderHud();
   }
   return hud;
-}
-
-function initHud() {
-  currentRoutes = generateRohiniCandidateRoutes(currentOrigin, currentDestination);
-  renderHud();
 }
 
 // Automatically sync route and fill Google Maps native search bars
@@ -63,13 +52,12 @@ function applyRouteToGoogleMaps(orig: string, dest: string, waypoint = '') {
   currentRoutes = generateRohiniCandidateRoutes(orig, dest);
   renderHud();
 
-  // 1. Try filling Google Maps inputs in the left sidebar
+  // Fill Google Maps inputs
   const inputs = document.querySelectorAll('input.tactile-searchbox-input, input.searchboxinput, #directions-searchbox-0 input, #directions-searchbox-1 input') as NodeListOf<HTMLInputElement>;
   if (inputs && inputs.length >= 2) {
     inputs[0].value = orig;
     inputs[1].value = dest;
 
-    // Flash visual feedback
     inputs[0].style.backgroundColor = '#FEF9C3';
     inputs[1].style.backgroundColor = '#FEF9C3';
     setTimeout(() => {
@@ -78,7 +66,7 @@ function applyRouteToGoogleMaps(orig: string, dest: string, waypoint = '') {
     }, 1200);
   }
 
-  // 2. Seamlessly update Google Maps URL
+  // Update Google Maps URL dynamically
   const encodedOrig = encodeURIComponent(orig);
   const encodedDest = encodeURIComponent(dest);
   let targetUrl = `https://www.google.com/maps/dir/${encodedOrig}/${encodedDest}/`;
@@ -97,40 +85,40 @@ function renderHud() {
 
   const routesHtml = currentRoutes.map((r, i) => {
     const isSelected = selectedRouteIndex === i;
-    const riskColor = r.route_risk >= 60 ? '#E11D48' : r.route_risk >= 30 ? '#D97706' : '#10B981';
+    const riskColor = r.route_risk >= 50 ? '#E11D48' : r.route_risk >= 30 ? '#D97706' : '#10B981';
 
     return `
       <div class="rp-route-card" data-idx="${i}" style="
-        background: ${isSelected ? 'rgba(212, 175, 55, 0.18)' : 'rgba(241, 245, 249, 0.85)'};
+        background: ${isSelected ? 'rgba(212, 175, 55, 0.18)' : 'rgba(241, 245, 249, 0.9)'};
         border: ${isSelected ? '2px solid #D4AF37' : '1px solid #CBD5E1'};
         border-radius: 12px;
-        padding: 9px;
-        margin-bottom: 7px;
+        padding: 10px;
+        margin-bottom: 8px;
         cursor: pointer;
         transition: all 0.2s ease;
         box-shadow: ${isSelected ? '0 4px 12px rgba(212, 175, 55, 0.25)' : 'none'};
       ">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
           <div style="display: flex; align-items: center; gap: 6px;">
             <span style="
-              font-size: 8.5px;
+              font-size: 9px;
               font-weight: 800;
               text-transform: uppercase;
-              padding: 2px 6px;
+              padding: 2px 7px;
               border-radius: 6px;
               background: ${r.isRecommended ? '#D4AF37' : '#64748B'};
               color: ${r.isRecommended ? '#121417' : '#FFFFFF'};
             ">${r.routeLabel}</span>
-            <span style="font-weight: 800; font-size: 13px; color: #0F172A;">${r.travel_time_minutes} min</span>
-            <span style="font-size: 10px; color: #64748B;">(${(r.distance_meters / 1000).toFixed(1)} km)</span>
+            <span style="font-weight: 800; font-size: 14px; color: #0F172A;">${r.travel_time_minutes} min</span>
+            <span style="font-size: 10px; color: #64748B;">(${r.distance_km} km)</span>
           </div>
 
           <div style="
             background: #FFFFFF;
-            padding: 2px 7px;
+            padding: 3px 8px;
             border-radius: 8px;
             border: 1.5px solid ${riskColor};
-            font-size: 10.5px;
+            font-size: 11px;
             font-weight: 800;
             color: ${riskColor};
             box-shadow: 0 2px 6px rgba(0,0,0,0.05);
@@ -139,14 +127,18 @@ function renderHud() {
           </div>
         </div>
 
-        <div style="font-size: 10px; color: #334155; font-weight: 600; line-height: 1.35; margin-bottom: 3px;">
+        <div style="font-size: 10.5px; color: #1E293B; font-weight: 700; line-height: 1.35; margin-bottom: 3px;">
           🛣️ ${r.summary}
         </div>
 
-        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 9px; color: #64748B; border-top: 1px dashed rgba(212,175,55,0.3); margin-top: 3px; padding-top: 2px;">
+        <div style="font-size: 9.5px; color: #64748B; margin-bottom: 4px;">
+          ${r.description}
+        </div>
+
+        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 9.5px; color: #64748B; border-top: 1px dashed rgba(212,175,55,0.3); margin-top: 4px; padding-top: 3px;">
           <span>Potholes: <b>${r.hazards.P}</b> | Near-Miss: <b>${r.hazards.N}</b></span>
           <span style="font-weight: 700; color: ${isSelected ? '#854D0E' : '#64748B'};">
-            ${isSelected ? '✔ Selected on Maps' : 'Click to Route on Maps'}
+            ${isSelected ? '✔ Active on Google Maps' : 'Click to Route This Path'}
           </span>
         </div>
       </div>
@@ -158,7 +150,7 @@ function renderHud() {
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px solid rgba(212,175,55,0.3); padding-bottom: 6px;">
       <div style="display: flex; align-items: center; gap: 6px;">
         <div style="width: 24px; height: 24px; border-radius: 6px; background: linear-gradient(135deg, #D4AF37, #AA8232); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 12px; color: #121417;">⚡</div>
-        <div style="font-weight: 800; font-size: 12px; letter-spacing: 0.5px;">ROADPULSE SEARCH & ROUTE</div>
+        <div style="font-weight: 800; font-size: 12px; letter-spacing: 0.5px;">ROADPULSE (ROHINI PILOT)</div>
       </div>
 
       <button id="rp-open-report-btn" style="
@@ -175,16 +167,16 @@ function renderHud() {
       </button>
     </div>
 
-    <!-- IN-HUD DIRECT SEARCH BARS (Origin & Destination) -->
+    <!-- IN-HUD SEARCH BARS -->
     <div style="background: #F8FAFC; border: 1.5px solid #E2E8F0; border-radius: 12px; padding: 8px; margin-bottom: 8px;">
       <div style="margin-bottom: 5px;">
-        <div style="font-size: 9px; font-weight: 700; color: #64748B; margin-bottom: 2px;">📍 START LOCATION</div>
-        <input id="rp-origin-input" type="text" value="${currentOrigin}" placeholder="Enter Starting Point..." style="width: 100%; box-sizing: border-box; padding: 5px 8px; border: 1px solid #CBD5E1; border-radius: 7px; font-size: 10.5px; font-weight: 600; color: #0F172A;" />
+        <div style="font-size: 9px; font-weight: 700; color: #64748B; margin-bottom: 2px;">📍 ORIGIN (START)</div>
+        <input id="rp-origin-input" type="text" value="${currentOrigin}" style="width: 100%; box-sizing: border-box; padding: 5px 8px; border: 1px solid #CBD5E1; border-radius: 7px; font-size: 10px; font-weight: 600; color: #0F172A;" />
       </div>
 
       <div style="margin-bottom: 6px;">
         <div style="font-size: 9px; font-weight: 700; color: #64748B; margin-bottom: 2px;">🏁 DESTINATION</div>
-        <input id="rp-dest-input" type="text" value="${currentDestination}" placeholder="Enter Destination..." style="width: 100%; box-sizing: border-box; padding: 5px 8px; border: 1px solid #CBD5E1; border-radius: 7px; font-size: 10.5px; font-weight: 600; color: #0F172A;" />
+        <input id="rp-dest-input" type="text" value="${currentDestination}" style="width: 100%; box-sizing: border-box; padding: 5px 8px; border: 1px solid #CBD5E1; border-radius: 7px; font-size: 10px; font-weight: 600; color: #0F172A;" />
       </div>
 
       <button id="rp-find-routes-btn" style="width: 100%; background: linear-gradient(135deg, #D4AF37, #AA8232); color: #121417; font-weight: 800; font-size: 10.5px; border: none; border-radius: 7px; padding: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;">
@@ -193,7 +185,7 @@ function renderHud() {
     </div>
 
     <!-- 3 Distinct Routes with Front Safety Indices -->
-    <div style="max-height: 230px; overflow-y: auto;">
+    <div style="max-height: 240px; overflow-y: auto;">
       ${routesHtml}
     </div>
 
@@ -299,14 +291,13 @@ function renderHud() {
     });
   }
 
-  // Attach card auto-sync click listener
+  // Click listener for the 3 route cards
   hud.querySelectorAll('.rp-route-card').forEach((card) => {
     card.addEventListener('click', () => {
       const idx = parseInt(card.getAttribute('data-idx') || '0');
       selectedRouteIndex = idx;
       const r = currentRoutes[idx];
-      const waypoint = CORRIDOR_WAYPOINTS[r.id] || '';
-      applyRouteToGoogleMaps(currentOrigin, currentDestination, waypoint);
+      applyRouteToGoogleMaps(currentOrigin, currentDestination, r.waypoint);
     });
   });
 
@@ -364,7 +355,6 @@ function renderHud() {
   }
 }
 
-// Ensure HUD stays mounted on Google Maps
 setInterval(() => {
   ensureHudExists();
 }, 2000);
