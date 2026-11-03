@@ -71,7 +71,7 @@ export default function App() {
   };
 
   return (
-    <div className="w-[390px] min-h-[460px] bg-cream-50 text-slate-800 flex flex-col p-4 text-xs select-none">
+    <div className="w-[500px] min-h-[620px] bg-cream-50 text-slate-800 flex flex-col p-4 text-xs select-none">
       {/* Extension Header */}
       <header className="glass-panel p-3 rounded-2xl flex items-center justify-between mb-3 border border-gold-400/30">
         <div className="flex items-center space-x-2.5">
