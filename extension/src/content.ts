@@ -1,10 +1,10 @@
-// RoadPulse 100% Client-Side Google Maps In-Page Overlay Script
-// Runs entirely inside the browser without requiring external server dependencies
-// Features dedicated Rohini safety hazard dataset, multi-route suggestions, and live GPS safety guard
+// RoadPulse 100% Client-Side Google Maps In-Page Companion
+// Automatically detects Google Maps routes, calculates 3 safety-aware candidates,
+// and when a user clicks a route card, it seamlessly syncs into Google Maps directions/waypoints!
 
-import { generateRohiniCandidateRoutes, ROHINI_HAZARDS } from './rohiniDataset';
+import { generateRohiniCandidateRoutes } from './rohiniDataset';
 
-console.log('%c[RoadPulse] Running 100% Client-Side in Google Maps', 'color: #D4AF37; font-weight: bold; font-size: 14px;');
+console.log('%c[RoadPulse] Live Google Maps Sync & Route Controller Active', 'color: #D4AF37; font-weight: bold; font-size: 14px;');
 
 let currentOrigin = '';
 let currentDestination = '';
@@ -12,6 +12,13 @@ let currentRoutes: any[] = [];
 let userLambda = 0.50;
 let isNavigating = false;
 let selectedRouteIndex = 0;
+
+// Waypoints to force Google Maps to route through specific Rohini safety corridors
+const CORRIDOR_WAYPOINTS: Record<string, string> = {
+  rohini_route_fastest: 'Outer Ring Rd, Mangolpuri, Delhi',
+  rohini_route_balanced: 'M2K Cinemas Rohini, Sector 3, Delhi',
+  rohini_route_safest: 'Sector 16 Rohini, Delhi'
+};
 
 // Ensure floating RoadPulse HUD exists on Google Maps
 function ensureHudExists(): HTMLElement | null {
@@ -47,11 +54,64 @@ function ensureHudExists(): HTMLElement | null {
 }
 
 function renderInitialHud(hud: HTMLElement) {
-  // Compute initial routes for Rohini corridor immediately
-  currentOrigin = '28.7191871, 77.0656768 (Rohini Sector 16)';
-  currentDestination = '28.662841, 77.048145 (Nangloi Cross)';
+  // Read existing Google Maps search boxes if available
+  detectGoogleMapsRoute();
+  if (!currentOrigin) {
+    currentOrigin = 'Rithala Metro Station, Bhagwan Mahavir Marg';
+    currentDestination = 'Madhuban Chowk, Block CD, Pitampura';
+  }
   currentRoutes = generateRohiniCandidateRoutes(currentOrigin, currentDestination, userLambda);
   renderHudRoutes(currentRoutes);
+}
+
+// Function to automatically sync selected route into Google Maps directions inputs
+function syncRouteToGoogleMaps(route: any, index: number) {
+  selectedRouteIndex = index;
+  renderHudRoutes(currentRoutes);
+
+  // 1. Check if Google Maps has the destination input or intermediate waypoint
+  const waypoint = CORRIDOR_WAYPOINTS[route.id] || '';
+
+  // 2. Try filling Google Maps inputs directly in the DOM
+  const inputs = document.querySelectorAll('input.tactile-searchbox-input, #directions-searchbox-1 input, #directions-searchbox-0 input') as NodeListOf<HTMLInputElement>;
+  if (inputs && inputs.length >= 2) {
+    // Flash visual feedback in Google Maps search bar
+    const destInput = inputs[1];
+    destInput.style.transition = 'all 0.3s ease';
+    destInput.style.backgroundColor = '#FEF9C3';
+    destInput.style.borderColor = '#D4AF37';
+
+    setTimeout(() => {
+      destInput.style.backgroundColor = '';
+      destInput.style.borderColor = '';
+    }, 1200);
+  }
+
+  // 3. Seamlessly update Google Maps route with the specific corridor waypoint
+  if (currentOrigin && currentDestination && waypoint) {
+    const encodedOrigin = encodeURIComponent(currentOrigin);
+    const encodedWaypoint = encodeURIComponent(waypoint);
+    const encodedDest = encodeURIComponent(currentDestination);
+
+    // Google Maps multi-stop URL: /dir/Origin/Waypoint/Destination/
+    const targetUrl = `https://www.google.com/maps/dir/${encodedOrigin}/${encodedWaypoint}/${encodedDest}/`;
+    
+    // Smooth in-page navigation without full page reload
+    window.history.pushState(null, '', targetUrl);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  }
+
+  // Also click Google Maps' own alternative route cards if matching
+  tryClickGoogleMapsAlternative(index);
+}
+
+// Click Google Maps' native alternative route if displayed on the left sidebar
+function tryClickGoogleMapsAlternative(index: number) {
+  const routeCards = document.querySelectorAll('[data-trip-index], div[role="region"][aria-label*="via"], [id*="section-directions-trip"]');
+  if (routeCards && routeCards.length > index) {
+    const targetCard = routeCards[index] as HTMLElement;
+    targetCard.click();
+  }
 }
 
 // Read Google Maps search boxes & URL
@@ -96,13 +156,14 @@ function renderHudRoutes(routes: any[]) {
 
     return `
       <div class="rp-route-card" data-idx="${i}" style="
-        background: ${isSelected ? 'rgba(212, 175, 55, 0.15)' : 'rgba(241, 245, 249, 0.85)'};
-        border: ${isSelected ? '2px solid #D4AF37' : '1px solid #E2E8F0'};
+        background: ${isSelected ? 'rgba(212, 175, 55, 0.18)' : 'rgba(241, 245, 249, 0.85)'};
+        border: ${isSelected ? '2px solid #D4AF37' : '1px solid #CBD5E1'};
         border-radius: 12px;
         padding: 10px;
         margin-bottom: 8px;
         cursor: pointer;
         transition: all 0.2s ease;
+        box-shadow: ${isSelected ? '0 4px 12px rgba(212, 175, 55, 0.25)' : 'none'};
       ">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
           <div style="display: flex; align-items: center; gap: 6px;">
@@ -137,10 +198,11 @@ function renderHudRoutes(routes: any[]) {
           🛣️ ${r.summary}
         </div>
 
-        <!-- Formula breakdown badge -->
-        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 9.5px; color: #64748B; border-top: 1px dashed rgba(212,175,55,0.3); pt-1; margin-top: 4px; padding-top: 3px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 9.5px; color: #64748B; border-top: 1px dashed rgba(212,175,55,0.3); margin-top: 4px; padding-top: 3px;">
           <span>Potholes: <b>${r.hazards.P}</b> | Near-Miss: <b>${r.hazards.N}</b></span>
-          <span style="font-weight: 700; color: #1E293B;">Cost J: ${r.cost}</span>
+          <span style="font-weight: 700; color: ${isSelected ? '#854D0E' : '#64748B'};">
+            ${isSelected ? '✔ Selected on Maps' : 'Click to Route on Maps'}
+          </span>
         </div>
       </div>
     `;
@@ -154,7 +216,7 @@ function renderHudRoutes(routes: any[]) {
         <div style="font-weight: 800; font-size: 12px; letter-spacing: 0.5px;">ROADPULSE ACTIVE</div>
       </div>
       <span style="font-size: 9px; font-weight: 700; color: #15803D; background: #DCFCE7; padding: 2px 7px; border-radius: 6px;">
-        Rohini Sector Guard
+        Auto-Sync on Maps
       </span>
     </div>
 
@@ -164,7 +226,7 @@ function renderHudRoutes(routes: any[]) {
       To: <strong style="color: #121417;">${currentDestination.slice(0, 32)}</strong>
     </div>
 
-    <!-- Safety Preference Slider (Client-Side) -->
+    <!-- Safety Preference Slider -->
     <div style="background: rgba(212, 175, 55, 0.08); border: 1px solid rgba(212,175,55,0.3); border-radius: 10px; padding: 8px; margin-bottom: 8px;">
       <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; font-weight: 700; margin-bottom: 3px;">
         <span style="color: #854D0E;">SAFETY PREFERENCE λ: ${userLambda.toFixed(2)}</span>
@@ -175,12 +237,12 @@ function renderHudRoutes(routes: any[]) {
       <input id="rp-lambda-slider" type="range" min="0.00" max="1.00" step="0.05" value="${userLambda}" style="width: 100%; accent-color: #D4AF37; cursor: pointer;" />
     </div>
 
-    <!-- 3 Distinct Candidate Routes List -->
+    <!-- 3 Distinct Routes (Clicking any route auto-syncs into Google Maps) -->
     <div style="max-height: 250px; overflow-y: auto;">
       ${routesHtml}
     </div>
 
-    <!-- Live Navigation Guard Status -->
+    <!-- Navigation Guard Status -->
     <div style="
       margin-top: 8px;
       padding-top: 8px;
@@ -211,7 +273,7 @@ function renderHudRoutes(routes: any[]) {
       </button>
     </div>
 
-    <!-- Live In-Route Hazard Alert Card (Visible when driving) -->
+    <!-- In-Route Hazard Alert -->
     <div id="rp-live-alert" style="
       display: ${isNavigating ? 'block' : 'none'};
       margin-top: 8px;
@@ -228,15 +290,15 @@ function renderHudRoutes(routes: any[]) {
     </div>
   `;
 
-  // Attach card selection listener
+  // Attach auto-sync click listener to each route card
   hud.querySelectorAll('.rp-route-card').forEach((card) => {
     card.addEventListener('click', () => {
-      selectedRouteIndex = parseInt(card.getAttribute('data-idx') || '0');
-      renderHudRoutes(routes);
+      const idx = parseInt(card.getAttribute('data-idx') || '0');
+      syncRouteToGoogleMaps(routes[idx], idx);
     });
   });
 
-  // Attach lambda slider listener for live recalculation
+  // Attach slider listener
   const slider = document.getElementById('rp-lambda-slider') as HTMLInputElement;
   if (slider) {
     slider.addEventListener('input', (e: any) => {
@@ -246,7 +308,7 @@ function renderHudRoutes(routes: any[]) {
     });
   }
 
-  // Attach Live Guard button listener
+  // Attach live guard listener
   const btn = document.getElementById('rp-start-nav-btn');
   if (btn) {
     btn.addEventListener('click', () => {
