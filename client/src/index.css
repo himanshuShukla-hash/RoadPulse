@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #FAF8F5;
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(212, 175, 55, 0.05) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(197, 160, 89, 0.06) 0px, transparent 50%),
+      radial-gradient(at 50% 50%, rgba(245, 241, 232, 0.4) 0px, transparent 100%);
+    min-height: 100vh;
+  }
+}
+
+/* Glassmorphism custom utilities with warm golden accents */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(212, 175, 55, 0.22);
+  box-shadow: 0 10px 30px -5px rgba(212, 175, 55, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.03);
+}
+
+.glass-panel-dark {
+  background: rgba(18, 20, 23, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.35);
+}
+
+.gold-gradient-text {
+  background: linear-gradient(135deg, #A47820 0%, #D4AF37 50%, #89651E 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gold-button {
+  background: linear-gradient(135deg, #D4AF37 0%, #C5A059 100%);
+  color: #121417;
+  font-weight: 600;
+  box-shadow: 0 4px 14px 0 rgba(212, 175, 55, 0.3);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gold-button:hover {
+  background: linear-gradient(135deg, #DFC048 0%, #D4AF37 100%);
+  box-shadow: 0 6px 20px 0 rgba(212, 175, 55, 0.45);
+  transform: translateY(-1px);
+}
+
+/* Leaflet map custom override for polished executive aesthetic */
+.leaflet-container {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  border-radius: 1rem;
+}
+
+/* Smooth pulse animation for live broadcast indicators */
+@keyframes beacon {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 14px rgba(212, 175, 55, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(212, 175, 55, 0); }
+}
+
+.beacon-pulse {
+  animation: beacon 2s infinite;
+}
