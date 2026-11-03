@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "RoadPulse — Safety-Aware Maps Companion",
-  "version": "2.0.0",
-  "description": "Risk-aware route recommendations, hazard intelligence, and user-controlled safety preference for Google Maps navigation.",
+  "version": "2.1.0",
+  "description": "Live road-safety indices and risk recommendations overlaid directly on Google Maps.",
   "action": {
     "default_popup": "index.html",
     "default_title": "RoadPulse Safety Navigator",
@@ -19,11 +19,11 @@
   "content_scripts": [
     {
       "matches": [
-        "https://www.google.com/maps/*",
-        "https://maps.google.com/*"
+        "*://*.google.com/*",
+        "*://*.google.co.in/*"
       ],
       "js": ["assets/content.js"],
-      "run_at": "document_idle"
+      "run_at": "document_start"
     }
   ],
   "permissions": [
@@ -32,8 +32,8 @@
   ],
   "host_permissions": [
     "http://localhost:5001/*",
-    "https://www.google.com/maps/*",
-    "https://maps.google.com/*"
+    "*://*.google.com/*",
+    "*://*.google.co.in/*"
   ],
   "icons": {
     "16": "icons/icon16.png",
