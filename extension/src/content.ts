@@ -1,19 +1,18 @@
 // RoadPulse 100% Client-Side Google Maps In-Page Companion
-// Locks origin & destination stably without jumping/flashing, suggests 3 distinct safety corridors,
-// and auto-syncs route changes into Google Maps directions!
+// Injects an In-HUD Search Bar directly on Google Maps + 3 Safety Route Corridors + Auto-Fill Sync + Photo Hazard Reporting
 
 import { generateRohiniCandidateRoutes, USER_REPORTED_HAZARDS, RohiniHazard } from './rohiniDataset';
 
-console.log('%c[RoadPulse] Stable Google Maps Route Controller Active', 'color: #D4AF37; font-weight: bold; font-size: 14px;');
+console.log('%c[RoadPulse] In-HUD Search Bar & Live Companion Active', 'color: #D4AF37; font-weight: bold; font-size: 14px;');
 
-let lockedOrigin = '';
-let lockedDestination = '';
+let currentOrigin = 'Rithala Metro Station, Bhagwan Mahavir Marg';
+let currentDestination = 'M2K Cinemas Rohini, Sector 3, Delhi';
 let currentRoutes: any[] = [];
 let isNavigating = false;
 let selectedRouteIndex = 0;
 let showReportModal = false;
 
-// Corridors & intermediate landmarks to route Google Maps safely
+// Corridors to route Google Maps safely
 const CORRIDOR_WAYPOINTS: Record<string, string> = {
   rohini_route_fastest: 'Outer Ring Rd, Mangolpuri, Delhi',
   rohini_route_balanced: 'M2K Cinemas Rohini, Sector 3, Delhi',
@@ -32,10 +31,10 @@ function ensureHudExists(): HTMLElement | null {
       top: 16px !important;
       right: 75px !important;
       z-index: 2147483647 !important;
-      width: 380px !important;
+      width: 390px !important;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
       border-radius: 18px !important;
-      background: rgba(255, 255, 255, 0.96) !important;
+      background: rgba(255, 255, 255, 0.97) !important;
       backdrop-filter: blur(20px) !important;
       -webkit-backdrop-filter: blur(20px) !important;
       border: 1.5px solid #D4AF37 !important;
@@ -47,98 +46,56 @@ function ensureHudExists(): HTMLElement | null {
       transition: all 0.3s ease !important;
     `;
     document.documentElement.appendChild(hud);
-    initRoutes();
+    initHud();
   }
   return hud;
 }
 
-// Parse and lock origin/destination stably (clean up URL query params, coords, etc.)
-function parseStableLocations(): { orig: string; dest: string } {
-  const url = window.location.href;
-
-  // 1. From URL: /dir/Origin/Destination/
-  const dirMatch = url.match(/\/dir\/([^\/]+)\/([^\/]+)/);
-  if (dirMatch && dirMatch.length >= 3) {
-    const rawOrig = decodeURIComponent(dirMatch[1].replace(/\+/g, ' ')).replace(/@.*/, '').split('/')[0].trim();
-    const rawDest = decodeURIComponent(dirMatch[2].replace(/\+/g, ' ')).replace(/@.*/, '').split('/')[0].trim();
-    if (rawOrig && rawDest) {
-      return { orig: rawOrig, dest: rawDest };
-    }
-  }
-
-  // 2. From search inputs
-  const inputs = document.querySelectorAll('input.tactile-searchbox-input, input.searchboxinput, [aria-label*="Choose starting point"], [aria-label*="Choose destination"]') as NodeListOf<HTMLInputElement>;
-  if (inputs.length >= 2 && inputs[0].value.trim() && inputs[1].value.trim()) {
-    return { orig: inputs[0].value.trim(), dest: inputs[1].value.trim() };
-  }
-
-  return {
-    orig: 'Rithala Metro Station, Bhagwan Mahavir Marg',
-    dest: 'M2K Cinemas Rohini, Sector 3, Delhi'
-  };
+function initHud() {
+  currentRoutes = generateRohiniCandidateRoutes(currentOrigin, currentDestination);
+  renderHud();
 }
 
-function initRoutes() {
-  const { orig, dest } = parseStableLocations();
-  lockedOrigin = orig;
-  lockedDestination = dest;
-  currentRoutes = generateRohiniCandidateRoutes(lockedOrigin, lockedDestination);
-  renderHudRoutes(currentRoutes);
-}
+// Automatically sync route and fill Google Maps native search bars
+function applyRouteToGoogleMaps(orig: string, dest: string, waypoint = '') {
+  currentOrigin = orig;
+  currentDestination = dest;
+  currentRoutes = generateRohiniCandidateRoutes(orig, dest);
+  renderHud();
 
-// Sync route directly into Google Maps
-function syncRouteToGoogleMaps(route: any, index: number) {
-  selectedRouteIndex = index;
-  renderHudRoutes(currentRoutes);
-
-  const waypoint = CORRIDOR_WAYPOINTS[route.id] || '';
-
-  // Visually flash Google Maps destination input
-  const inputs = document.querySelectorAll('input.tactile-searchbox-input, #directions-searchbox-1 input') as NodeListOf<HTMLInputElement>;
+  // 1. Try filling Google Maps inputs in the left sidebar
+  const inputs = document.querySelectorAll('input.tactile-searchbox-input, input.searchboxinput, #directions-searchbox-0 input, #directions-searchbox-1 input') as NodeListOf<HTMLInputElement>;
   if (inputs && inputs.length >= 2) {
-    const destInput = inputs[1];
-    destInput.style.transition = 'all 0.3s ease';
-    destInput.style.backgroundColor = '#FEF9C3';
-    destInput.style.borderColor = '#D4AF37';
+    inputs[0].value = orig;
+    inputs[1].value = dest;
+
+    // Flash visual feedback
+    inputs[0].style.backgroundColor = '#FEF9C3';
+    inputs[1].style.backgroundColor = '#FEF9C3';
     setTimeout(() => {
-      destInput.style.backgroundColor = '';
-      destInput.style.borderColor = '';
+      inputs[0].style.backgroundColor = '';
+      inputs[1].style.backgroundColor = '';
     }, 1200);
   }
 
-  // Seamlessly update Google Maps route with specific corridor waypoint
-  if (lockedOrigin && lockedDestination && waypoint) {
-    const encodedOrigin = encodeURIComponent(lockedOrigin);
+  // 2. Seamlessly update Google Maps URL
+  const encodedOrig = encodeURIComponent(orig);
+  const encodedDest = encodeURIComponent(dest);
+  let targetUrl = `https://www.google.com/maps/dir/${encodedOrig}/${encodedDest}/`;
+  if (waypoint) {
     const encodedWaypoint = encodeURIComponent(waypoint);
-    const encodedDest = encodeURIComponent(lockedDestination);
-    const targetUrl = `https://www.google.com/maps/dir/${encodedOrigin}/${encodedWaypoint}/${encodedDest}/`;
-    window.history.pushState(null, '', targetUrl);
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    targetUrl = `https://www.google.com/maps/dir/${encodedOrig}/${encodedWaypoint}/${encodedDest}/`;
   }
 
-  // Click native card if available
-  const routeCards = document.querySelectorAll('[data-trip-index], div[role="region"][aria-label*="via"], [id*="section-directions-trip"]');
-  if (routeCards && routeCards.length > index) {
-    (routeCards[index] as HTMLElement).click();
-  }
+  window.history.pushState(null, '', targetUrl);
+  window.dispatchEvent(new PopStateEvent('popstate'));
 }
 
-function detectGoogleMapsRoute() {
-  const { orig, dest } = parseStableLocations();
-  // Only update if genuine user navigation change occurred (prevents flickering)
-  if (orig && dest && (orig !== lockedOrigin || dest !== lockedDestination)) {
-    lockedOrigin = orig;
-    lockedDestination = dest;
-    currentRoutes = generateRohiniCandidateRoutes(orig, dest);
-    renderHudRoutes(currentRoutes);
-  }
-}
-
-function renderHudRoutes(routes: any[]) {
+function renderHud() {
   const hud = ensureHudExists();
   if (!hud) return;
 
-  const routesHtml = routes.map((r, i) => {
+  const routesHtml = currentRoutes.map((r, i) => {
     const isSelected = selectedRouteIndex === i;
     const riskColor = r.route_risk >= 60 ? '#E11D48' : r.route_risk >= 30 ? '#D97706' : '#10B981';
 
@@ -147,33 +104,33 @@ function renderHudRoutes(routes: any[]) {
         background: ${isSelected ? 'rgba(212, 175, 55, 0.18)' : 'rgba(241, 245, 249, 0.85)'};
         border: ${isSelected ? '2px solid #D4AF37' : '1px solid #CBD5E1'};
         border-radius: 12px;
-        padding: 10px;
-        margin-bottom: 8px;
+        padding: 9px;
+        margin-bottom: 7px;
         cursor: pointer;
         transition: all 0.2s ease;
         box-shadow: ${isSelected ? '0 4px 12px rgba(212, 175, 55, 0.25)' : 'none'};
       ">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
           <div style="display: flex; align-items: center; gap: 6px;">
             <span style="
-              font-size: 9px;
+              font-size: 8.5px;
               font-weight: 800;
               text-transform: uppercase;
-              padding: 2.5px 7px;
+              padding: 2px 6px;
               border-radius: 6px;
               background: ${r.isRecommended ? '#D4AF37' : '#64748B'};
               color: ${r.isRecommended ? '#121417' : '#FFFFFF'};
             ">${r.routeLabel}</span>
-            <span style="font-weight: 800; font-size: 14px; color: #0F172A;">${r.travel_time_minutes} min</span>
+            <span style="font-weight: 800; font-size: 13px; color: #0F172A;">${r.travel_time_minutes} min</span>
             <span style="font-size: 10px; color: #64748B;">(${(r.distance_meters / 1000).toFixed(1)} km)</span>
           </div>
 
           <div style="
             background: #FFFFFF;
-            padding: 3px 8px;
+            padding: 2px 7px;
             border-radius: 8px;
             border: 1.5px solid ${riskColor};
-            font-size: 11px;
+            font-size: 10.5px;
             font-weight: 800;
             color: ${riskColor};
             box-shadow: 0 2px 6px rgba(0,0,0,0.05);
@@ -182,11 +139,11 @@ function renderHudRoutes(routes: any[]) {
           </div>
         </div>
 
-        <div style="font-size: 10.5px; color: #334155; font-weight: 600; line-height: 1.35; margin-bottom: 4px;">
+        <div style="font-size: 10px; color: #334155; font-weight: 600; line-height: 1.35; margin-bottom: 3px;">
           🛣️ ${r.summary}
         </div>
 
-        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 9.5px; color: #64748B; border-top: 1px dashed rgba(212,175,55,0.3); margin-top: 4px; padding-top: 3px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 9px; color: #64748B; border-top: 1px dashed rgba(212,175,55,0.3); margin-top: 3px; padding-top: 2px;">
           <span>Potholes: <b>${r.hazards.P}</b> | Near-Miss: <b>${r.hazards.N}</b></span>
           <span style="font-weight: 700; color: ${isSelected ? '#854D0E' : '#64748B'};">
             ${isSelected ? '✔ Selected on Maps' : 'Click to Route on Maps'}
@@ -201,36 +158,42 @@ function renderHudRoutes(routes: any[]) {
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px solid rgba(212,175,55,0.3); padding-bottom: 6px;">
       <div style="display: flex; align-items: center; gap: 6px;">
         <div style="width: 24px; height: 24px; border-radius: 6px; background: linear-gradient(135deg, #D4AF37, #AA8232); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 12px; color: #121417;">⚡</div>
-        <div style="font-weight: 800; font-size: 12px; letter-spacing: 0.5px;">ROADPULSE ACTIVE</div>
+        <div style="font-weight: 800; font-size: 12px; letter-spacing: 0.5px;">ROADPULSE SEARCH & ROUTE</div>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 6px;">
-        <button id="rp-open-report-btn" style="
-          background: #FEF3C7;
-          border: 1px solid #D4AF37;
-          color: #854D0E;
-          border-radius: 6px;
-          padding: 2.5px 7px;
-          font-size: 9px;
-          font-weight: 800;
-          cursor: pointer;
-        ">
-          + Report Hazard
-        </button>
-        <span style="font-size: 9px; font-weight: 700; color: #15803D; background: #DCFCE7; padding: 2px 6px; border-radius: 6px;">
-          Rohini Network
-        </span>
-      </div>
+      <button id="rp-open-report-btn" style="
+        background: #FEF3C7;
+        border: 1px solid #D4AF37;
+        color: #854D0E;
+        border-radius: 6px;
+        padding: 2.5px 7px;
+        font-size: 9px;
+        font-weight: 800;
+        cursor: pointer;
+      ">
+        + Report Hazard
+      </button>
     </div>
 
-    <!-- Origin & Destination (Stable locked text) -->
-    <div style="font-size: 10px; color: #64748B; margin-bottom: 8px; line-height: 1.35; background: #F8FAFC; padding: 6px; border-radius: 8px; border: 1px solid #E2E8F0;">
-      <div>From: <strong style="color: #0F172A;">${lockedOrigin.slice(0, 36)}</strong></div>
-      <div>To: <strong style="color: #0F172A;">${lockedDestination.slice(0, 36)}</strong></div>
+    <!-- IN-HUD DIRECT SEARCH BARS (Origin & Destination) -->
+    <div style="background: #F8FAFC; border: 1.5px solid #E2E8F0; border-radius: 12px; padding: 8px; margin-bottom: 8px;">
+      <div style="margin-bottom: 5px;">
+        <div style="font-size: 9px; font-weight: 700; color: #64748B; margin-bottom: 2px;">📍 START LOCATION</div>
+        <input id="rp-origin-input" type="text" value="${currentOrigin}" placeholder="Enter Starting Point..." style="width: 100%; box-sizing: border-box; padding: 5px 8px; border: 1px solid #CBD5E1; border-radius: 7px; font-size: 10.5px; font-weight: 600; color: #0F172A;" />
+      </div>
+
+      <div style="margin-bottom: 6px;">
+        <div style="font-size: 9px; font-weight: 700; color: #64748B; margin-bottom: 2px;">🏁 DESTINATION</div>
+        <input id="rp-dest-input" type="text" value="${currentDestination}" placeholder="Enter Destination..." style="width: 100%; box-sizing: border-box; padding: 5px 8px; border: 1px solid #CBD5E1; border-radius: 7px; font-size: 10.5px; font-weight: 600; color: #0F172A;" />
+      </div>
+
+      <button id="rp-find-routes-btn" style="width: 100%; background: linear-gradient(135deg, #D4AF37, #AA8232); color: #121417; font-weight: 800; font-size: 10.5px; border: none; border-radius: 7px; padding: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;">
+        <span>🔍 Search & Fill on Google Maps</span>
+      </button>
     </div>
 
     <!-- 3 Distinct Routes with Front Safety Indices -->
-    <div style="max-height: 250px; overflow-y: auto;">
+    <div style="max-height: 230px; overflow-y: auto;">
       ${routesHtml}
     </div>
 
@@ -255,7 +218,7 @@ function renderHudRoutes(routes: any[]) {
         color: #FFFFFF;
         border: none;
         border-radius: 8px;
-        padding: 6px 12px;
+        padding: 5px 11px;
         font-size: 10px;
         font-weight: 700;
         cursor: pointer;
@@ -269,10 +232,10 @@ function renderHudRoutes(routes: any[]) {
     <div id="rp-live-alert" style="
       display: ${isNavigating ? 'block' : 'none'};
       margin-top: 8px;
-      padding: 9px;
+      padding: 8px;
       background: #FEF3C7;
       border: 1px solid #F59E0B;
-      border-radius: 9px;
+      border-radius: 8px;
       font-size: 10px;
       color: #92400E;
       font-weight: 600;
@@ -324,11 +287,26 @@ function renderHudRoutes(routes: any[]) {
     </div>
   `;
 
+  // Search & Fill button listener
+  const findBtn = document.getElementById('rp-find-routes-btn');
+  if (findBtn) {
+    findBtn.addEventListener('click', () => {
+      const orig = (document.getElementById('rp-origin-input') as HTMLInputElement)?.value.trim();
+      const dest = (document.getElementById('rp-dest-input') as HTMLInputElement)?.value.trim();
+      if (orig && dest) {
+        applyRouteToGoogleMaps(orig, dest);
+      }
+    });
+  }
+
   // Attach card auto-sync click listener
   hud.querySelectorAll('.rp-route-card').forEach((card) => {
     card.addEventListener('click', () => {
       const idx = parseInt(card.getAttribute('data-idx') || '0');
-      syncRouteToGoogleMaps(routes[idx], idx);
+      selectedRouteIndex = idx;
+      const r = currentRoutes[idx];
+      const waypoint = CORRIDOR_WAYPOINTS[r.id] || '';
+      applyRouteToGoogleMaps(currentOrigin, currentDestination, waypoint);
     });
   });
 
@@ -337,7 +315,7 @@ function renderHudRoutes(routes: any[]) {
   if (openReportBtn) {
     openReportBtn.addEventListener('click', () => {
       showReportModal = !showReportModal;
-      renderHudRoutes(routes);
+      renderHud();
     });
   }
 
@@ -345,7 +323,7 @@ function renderHudRoutes(routes: any[]) {
   if (closeModalBtn) {
     closeModalBtn.addEventListener('click', () => {
       showReportModal = false;
-      renderHudRoutes(routes);
+      renderHud();
     });
   }
 
@@ -372,7 +350,7 @@ function renderHudRoutes(routes: any[]) {
       USER_REPORTED_HAZARDS.push(newHaz);
       alert(`✅ Hazard "${newHaz.name}" verified with photo proof and added to Rohini safety network!`);
       showReportModal = false;
-      renderHudRoutes(routes);
+      renderHud();
     });
   }
 
@@ -381,13 +359,12 @@ function renderHudRoutes(routes: any[]) {
   if (btn) {
     btn.addEventListener('click', () => {
       isNavigating = !isNavigating;
-      renderHudRoutes(routes);
+      renderHud();
     });
   }
 }
 
-// Stable interval check (only updates on actual origin/destination changes)
+// Ensure HUD stays mounted on Google Maps
 setInterval(() => {
   ensureHudExists();
-  detectGoogleMapsRoute();
 }, 2000);
