@@ -71,125 +71,151 @@ export default function App() {
   };
 
   return (
-    <div className="w-[390px] min-h-[460px] bg-cream-50 text-slate-800 flex flex-col p-4 text-xs select-none">
-      {/* Extension Header */}
-      <header className="glass-panel p-3 rounded-2xl flex items-center justify-between mb-3 border border-gold-400/30">
+    <div className="w-[390px] min-h-[460px] flex flex-col p-4 text-xs select-none relative overflow-hidden"
+         style={{ background: 'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)' }}>
+
+      {/* Ambient glow blobs */}
+      <div style={{
+        position: 'absolute', top: '-60px', left: '-40px',
+        width: '220px', height: '220px', borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(212,175,55,0.18) 0%, transparent 70%)',
+        pointerEvents: 'none', zIndex: 0
+      }} />
+      <div style={{
+        position: 'absolute', bottom: '-80px', right: '-50px',
+        width: '260px', height: '260px', borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%)',
+        pointerEvents: 'none', zIndex: 0
+      }} />
+
+      {/* ── Extension Header ─────────────────────────────── */}
+      <header className="glass-panel p-3 rounded-2xl flex items-center justify-between mb-3" style={{ position: 'relative', zIndex: 1 }}>
         <div className="flex items-center space-x-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-gold-600 to-gold-400 flex items-center justify-center text-slate-950 font-black shadow-sm">
-            <Compass className="w-5 h-5 text-slate-950" />
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-lg"
+               style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.9), rgba(170,130,50,0.85))', backdropFilter: 'blur(8px)' }}>
+            <Compass className="w-5 h-5" style={{ color: '#0f0c29' }} />
           </div>
           <div>
             <div className="flex items-center space-x-1.5">
-              <h1 className="font-serif font-bold text-slate-900 tracking-tight text-sm">ROADPULSE</h1>
-              <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-300">
+              <h1 className="font-bold tracking-widest text-sm" style={{ color: '#D4AF37', letterSpacing: '0.12em' }}>ROADPULSE</h1>
+              <span className="px-1.5 rounded-full text-[9px] font-bold uppercase"
+                    style={{ background: 'rgba(16,185,129,0.2)', color: '#6EE7B7', border: '1px solid rgba(16,185,129,0.4)' }}>
                 Rohini Active
               </span>
             </div>
-            <p className="text-[10px] text-slate-500">Google Maps Safety Route Companion</p>
+            <p className="text-[10px]" style={{ color: 'rgba(200,200,220,0.6)' }}>Google Maps Safety Route Companion</p>
           </div>
         </div>
 
         <button
           onClick={() => setShowReportModal(true)}
-          className="p-1.5 bg-white/80 hover:bg-gold-400/20 rounded-xl border border-gold-400/30 text-gold-700 flex items-center space-x-1 cursor-pointer transition-colors"
+          className="flex items-center space-x-1 cursor-pointer transition-all"
+          style={{
+            padding: '5px 10px', borderRadius: '10px',
+            background: 'rgba(212,175,55,0.15)', border: '1px solid rgba(212,175,55,0.35)',
+            color: '#D4AF37', backdropFilter: 'blur(6px)'
+          }}
           title="Report Pothole, Blind Curve or Accident"
         >
-          <PlusCircle className="w-4 h-4 text-gold-600" />
+          <PlusCircle className="w-3.5 h-3.5" />
           <span className="text-[10px] font-bold">Report</span>
         </button>
       </header>
 
-      {/* Origin & Destination Inputs directly inside extension popup */}
-      <section className="glass-panel p-3.5 rounded-2xl border border-gold-400/30 space-y-2.5 mb-3">
-        <div className="text-[10px] font-bold uppercase tracking-wider text-gold-700 flex items-center space-x-1">
-          <MapPin className="w-3.5 h-3.5 text-gold-600" />
+      {/* ── Origin & Destination ─────────────────────────── */}
+      <section className="glass-panel p-3.5 rounded-2xl space-y-2.5 mb-3" style={{ position: 'relative', zIndex: 1 }}>
+        <div className="text-[10px] font-bold uppercase tracking-wider flex items-center space-x-1" style={{ color: '#D4AF37' }}>
+          <MapPin className="w-3.5 h-3.5" />
           <span>Route Location Selector</span>
         </div>
 
         <div>
-          <label className="text-[10px] text-slate-600 font-bold block mb-1">Starting Point (Origin)</label>
+          <label className="text-[10px] font-bold block mb-1" style={{ color: 'rgba(200,200,220,0.75)' }}>📍 Starting Point</label>
           <input
             type="text"
             value={origin}
             onChange={(e) => setOrigin(e.target.value)}
             placeholder="e.g. Rithala Metro Station"
-            className="w-full p-2 bg-white border border-slate-300 rounded-xl text-[11px] font-medium text-slate-900 focus:outline-none focus:border-gold-500"
+            className="glass-input w-full p-2 text-[11px] font-medium"
+            style={{ color: '#f0f0f0' }}
           />
         </div>
 
         <div>
-          <label className="text-[10px] text-slate-600 font-bold block mb-1">Destination</label>
+          <label className="text-[10px] font-bold block mb-1" style={{ color: 'rgba(200,200,220,0.75)' }}>🏁 Destination</label>
           <input
             type="text"
             value={destination}
             onChange={(e) => setDestination(e.target.value)}
             placeholder="e.g. M2K Cinemas Rohini, Sector 3"
-            className="w-full p-2 bg-white border border-slate-300 rounded-xl text-[11px] font-medium text-slate-900 focus:outline-none focus:border-gold-500"
+            className="glass-input w-full p-2 text-[11px] font-medium"
+            style={{ color: '#f0f0f0' }}
           />
         </div>
 
         {/* Quick Presets */}
         <div className="flex items-center space-x-1 pt-1 overflow-x-auto">
-          <span className="text-[9px] text-slate-400 uppercase font-bold shrink-0">Presets:</span>
+          <span className="text-[9px] uppercase font-bold shrink-0" style={{ color: 'rgba(200,200,220,0.45)' }}>Presets:</span>
           {PRESETS.map((p, i) => (
             <button
               key={i}
               type="button"
-              onClick={() => {
-                setOrigin(p.from);
-                setDestination(p.to);
-              }}
-              className="px-2 py-0.5 bg-slate-100 hover:bg-gold-400/20 rounded text-[9px] text-slate-700 font-medium whitespace-nowrap cursor-pointer transition-colors"
+              onClick={() => { setOrigin(p.from); setDestination(p.to); }}
+              className="px-2 py-0.5 rounded text-[9px] font-medium whitespace-nowrap cursor-pointer transition-colors"
+              style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(200,200,220,0.8)', border: '1px solid rgba(255,255,255,0.12)' }}
             >
               {p.from.split(' ')[0]} ➔ {p.to.split(' ')[0]}
             </button>
           ))}
         </div>
 
-        {/* Start Route on Google Maps button */}
+        {/* Start Route Button */}
         <button
           onClick={handleStartGoogleMapsNavigation}
-          className="w-full gold-button py-2.5 rounded-xl text-xs flex items-center justify-center space-x-2 font-bold cursor-pointer shadow-md mt-1"
+          className="w-full gold-button py-2.5 rounded-xl text-xs flex items-center justify-center space-x-2 font-bold cursor-pointer mt-1"
         >
           <Navigation className="w-4 h-4 fill-current" />
           <span>Start Route on Google Maps</span>
         </button>
       </section>
 
-      {/* Explanatory Info Card */}
-      <section className="glass-panel p-3 rounded-2xl border border-slate-200 text-slate-600 space-y-1 mt-auto">
-        <div className="flex items-center space-x-1.5 font-bold text-slate-800 text-[11px]">
-          <ShieldAlert className="w-3.5 h-3.5 text-gold-600" />
+      {/* ── Info Card ────────────────────────────────────── */}
+      <section className="glass-panel p-3 rounded-2xl space-y-1 mt-auto" style={{ position: 'relative', zIndex: 1 }}>
+        <div className="flex items-center space-x-1.5 font-bold text-[11px]" style={{ color: '#D4AF37' }}>
+          <ShieldAlert className="w-3.5 h-3.5" />
           <span>Automatic In-Page Safety Scoring</span>
         </div>
-        <p className="text-[10px] leading-relaxed text-slate-500">
-          When you click "Start Route", Google Maps opens with these exact locations and RoadPulse's floating HUD shows **3 alternative safety paths** with risk scores!
+        <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(200,200,220,0.65)' }}>
+          Click "Start Route" → Google Maps opens → RoadPulse HUD shows 3 alternative safety paths with live risk scores.
         </p>
       </section>
 
-      {/* Hazard Reporting Modal */}
+      {/* ── Hazard Reporting Modal ────────────────────────── */}
       {showReportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="glass-panel bg-white p-4 rounded-2xl w-full border border-gold-400 shadow-2xl space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-              <span className="font-serif font-bold text-slate-900 text-xs">Mark Road Hazard</span>
-              <button onClick={() => setShowReportModal(false)} className="text-slate-400 hover:text-slate-700">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+             style={{ background: 'rgba(10,8,30,0.75)', backdropFilter: 'blur(8px)' }}>
+          <div className="glass-panel p-4 rounded-2xl w-full shadow-2xl space-y-3" style={{ border: '1px solid rgba(212,175,55,0.45)' }}>
+            <div className="flex items-center justify-between pb-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <span className="font-bold text-xs" style={{ color: '#D4AF37' }}>📍 Mark Road Hazard</span>
+              <button onClick={() => setShowReportModal(false)} style={{ color: 'rgba(200,200,220,0.6)' }}>
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {reportSuccess ? (
-              <div className="p-3 bg-emerald-50 text-emerald-800 rounded-xl text-xs font-medium text-center">
+              <div className="p-3 rounded-xl text-xs font-medium text-center"
+                   style={{ background: 'rgba(16,185,129,0.15)', color: '#6EE7B7', border: '1px solid rgba(16,185,129,0.3)' }}>
                 ✔ Hazard verified and logged into Rohini network!
               </div>
             ) : (
               <form onSubmit={handleReportHazard} className="space-y-2.5">
                 <div>
-                  <label className="text-[10px] font-semibold text-slate-600 block mb-1">Hazard Type</label>
+                  <label className="text-[10px] font-semibold block mb-1" style={{ color: 'rgba(200,200,220,0.75)' }}>Hazard Type</label>
                   <select
                     value={hazardCategory}
                     onChange={(e) => setHazardCategory(e.target.value)}
-                    className="w-full p-1.5 border border-slate-200 rounded-lg text-xs"
+                    className="w-full p-1.5 rounded-lg text-xs"
+                    style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', color: '#f0f0f0' }}
                   >
                     <option value="pothole">🕳️ Pothole / Road Damage</option>
                     <option value="dangerous_turn">↪️ Sharp Blind Curve</option>
@@ -200,24 +226,22 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-semibold text-slate-600 block mb-1">Landmark / Location</label>
+                  <label className="text-[10px] font-semibold block mb-1" style={{ color: 'rgba(200,200,220,0.75)' }}>Landmark / Location</label>
                   <input
                     type="text"
                     value={hazardLoc}
                     onChange={(e) => setHazardLoc(e.target.value)}
-                    className="w-full p-1.5 border border-slate-200 rounded-lg text-xs"
+                    className="glass-input w-full p-1.5 text-xs"
+                    style={{ color: '#f0f0f0' }}
                   />
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-semibold text-slate-600 block mb-1">📸 Photo Proof Upload</label>
-                  <input type="file" accept="image/*" className="w-full text-[9px] text-slate-500" />
+                  <label className="text-[10px] font-semibold block mb-1" style={{ color: 'rgba(200,200,220,0.75)' }}>📸 Photo Proof Upload</label>
+                  <input type="file" accept="image/*" className="w-full text-[9px]" style={{ color: 'rgba(200,200,220,0.6)' }} />
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full gold-button py-2 rounded-xl text-xs font-bold cursor-pointer"
-                >
+                <button type="submit" className="w-full gold-button py-2 rounded-xl text-xs font-bold cursor-pointer">
                   Submit Verified Hazard
                 </button>
               </form>
