@@ -7,11 +7,11 @@ import {
   Sliders, 
   AlertTriangle, 
   CheckCircle2, 
-  Clock, 
   Milestone,
   PlusCircle,
   X,
   Compass,
+  Search,
   Sparkles
 } from 'lucide-react';
 import { DemoLocation, CandidateRoute, RouteResponse } from './types';
@@ -19,11 +19,9 @@ import { DemoLocation, CandidateRoute, RouteResponse } from './types';
 const API_BASE = 'http://localhost:5001/api';
 
 export default function App() {
-  const [locations, setLocations] = useState<DemoLocation[]>([]);
-  const [origin, setOrigin] = useState<string>('tech_park');
-  const [destination, setDestination] = useState<string>('market_square');
+  const [originInput, setOriginInput] = useState<string>('Koramangala 5th Block');
+  const [destInput, setDestInput] = useState<string>('Indiranagar 100ft Road');
   const [lambda, setLambda] = useState<number>(0.50);
-  const [lambdaConfirmed, setLambdaConfirmed] = useState<boolean>(true);
   
   const [routes, setRoutes] = useState<CandidateRoute[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<CandidateRoute | null>(null);
@@ -39,29 +37,24 @@ export default function App() {
   const [hazardDesc, setHazardDesc] = useState<string>('');
   const [hazardSuccess, setHazardSuccess] = useState<boolean>(false);
 
-  // Load locations on mount
+  // Quick preset real routes
+  const PRESETS = [
+    { from: 'Koramangala 5th Block', to: 'Indiranagar 100ft Road' },
+    { from: 'HSR Layout Sector 1', to: 'MG Road Metro Station' },
+    { from: 'Indiranagar 100ft Road', to: 'Whitefield Main Road' }
+  ];
+
   useEffect(() => {
-    fetchLocations();
+    // Initial fetch to verify connection
+    fetch(`${API_BASE}/health`)
+      .then(res => res.json())
+      .then(() => setBackendOnline(true))
+      .catch(() => setBackendOnline(false));
   }, []);
 
-  const fetchLocations = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/demo/locations`);
-      const data = await res.json();
-      if (data.success) {
-        setLocations(data.data);
-        setBackendOnline(true);
-      }
-    } catch {
-      setBackendOnline(false);
-      setError('Backend service offline. Please run "npm start" in the /server directory.');
-    }
-  };
-
-  // Analyze or recalculate routes when Origin or Destination changes
   const handleCalculateRoutes = async () => {
-    if (origin === destination) {
-      setError('Origin and destination cannot be identical.');
+    if (!originInput.trim() || !destInput.trim()) {
+      setError('Please enter both origin and destination addresses.');
       return;
     }
     setLoading(true);
@@ -72,8 +65,8 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          origin_id: origin,
-          destination_id: destination,
+          origin_query: originInput,
+          dest_query: destInput,
           lambda
         })
       });
@@ -81,20 +74,18 @@ export default function App() {
       const data: RouteResponse = await res.json();
       if (data.success && data.routes) {
         setRoutes(data.routes);
-        setSelectedRoute(data.routes[0]); // Lowest generalized cost route
+        setSelectedRoute(data.routes[0]);
         setGmapsUrl(data.google_maps_url);
-        setLambdaConfirmed(true);
       } else {
-        setError('No candidate routes found for this pair.');
+        setError('No navigable routes found between these locations.');
       }
     } catch {
-      setError('Failed to calculate risk alternatives. Check backend connection.');
+      setError('Failed to fetch real-world road network. Make sure server is running on port 5001.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle lambda slider move (Real recalculation)
   const handleLambdaChange = async (newVal: number) => {
     setLambda(newVal);
     if (routes.length === 0) return;
@@ -111,16 +102,13 @@ export default function App() {
       const data = await res.json();
       if (data.success && data.routes) {
         setRoutes(data.routes);
-        // Retain selection or update to new top recommendation
-        const topRoute = data.routes[0];
-        setSelectedRoute(topRoute);
+        setSelectedRoute(data.routes[0]);
       }
     } catch (e) {
       console.error('Recalculate error:', e);
     }
   };
 
-  // Submit hazard
   const handleReportHazard = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -140,7 +128,6 @@ export default function App() {
           setHazardSuccess(false);
           setShowHazardModal(false);
           setHazardDesc('');
-          // Recompute current routes with newly logged hazard
           handleCalculateRoutes();
         }, 1200);
       }
@@ -149,17 +136,16 @@ export default function App() {
     }
   };
 
-  // Lambda Label Helper
   const getLambdaLabel = (val: number) => {
-    if (val <= 0.10) return '0.00 — Pure Fastest (Time only)';
+    if (val <= 0.15) return '0.00 — Pure Fastest';
     if (val <= 0.35) return '0.25 — Slight Safety Preference';
-    if (val <= 0.65) return '0.50 — Balanced (Time + Hazards)';
+    if (val <= 0.65) return '0.50 — Balanced';
     if (val <= 0.85) return '0.75 — Strong Safety Preference';
     return '1.00 — Safety-Prioritized';
   };
 
   return (
-    <div className="w-[420px] min-h-[560px] bg-cream-50 text-slate-800 flex flex-col p-4 text-xs select-none">
+    <div className="w-[420px] min-h-[580px] bg-cream-50 text-slate-800 flex flex-col p-4 text-xs select-none">
       {/* Extension Header */}
       <header className="glass-panel p-3 rounded-2xl flex items-center justify-between mb-3 border border-gold-400/30">
         <div className="flex items-center space-x-2.5">
@@ -169,11 +155,11 @@ export default function App() {
           <div>
             <div className="flex items-center space-x-1.5">
               <h1 className="font-serif font-bold text-slate-900 tracking-tight text-sm">ROADPULSE</h1>
-              <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold uppercase bg-gold-400/20 text-gold-700 border border-gold-500/30">
-                Maps Companion
+              <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-300">
+                Live GPS Routing
               </span>
             </div>
-            <p className="text-[10px] text-slate-500">Risk-Aware Route Recommendation</p>
+            <p className="text-[10px] text-slate-500">Real-World Safety Companion for Google Maps</p>
           </div>
         </div>
 
@@ -189,58 +175,71 @@ export default function App() {
 
       {/* Backend Status Warning */}
       {!backendOnline && (
-        <div className="mb-3 p-2.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl flex items-center space-x-2 text-[11px]">
+        <div className="mb-3 p-2 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl flex items-center space-x-2 text-[11px]">
           <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-          <span>Backend routing engine offline. Please start server on port 5001.</span>
+          <span>Backend routing engine offline. Run "npm start" in /server.</span>
         </div>
       )}
 
-      {/* Origin & Destination Selection */}
+      {/* Real-World Address Inputs */}
       <section className="glass-panel p-3 rounded-2xl border border-gold-400/20 space-y-2 mb-3">
-        <div className="text-[10px] font-bold uppercase tracking-wider text-gold-700 flex items-center space-x-1">
-          <MapPin className="w-3 h-3" />
-          <span>Demo Corridor (Deterministic Network)</span>
+        <div className="text-[10px] font-bold uppercase tracking-wider text-gold-700 flex items-center justify-between">
+          <div className="flex items-center space-x-1">
+            <Search className="w-3 h-3" />
+            <span>Enter Real Addresses</span>
+          </div>
+          <span className="text-[9px] text-slate-400 font-normal">Real Roads & Turn Steps</span>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1.5">
           <div>
-            <label className="text-[10px] text-slate-500 font-semibold block mb-0.5">Origin</label>
-            <select
-              value={origin}
-              onChange={(e) => setOrigin(e.target.value)}
-              className="w-full p-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-medium text-slate-800 focus:outline-none focus:border-gold-400"
-            >
-              {locations.map((loc) => (
-                <option key={loc.id} value={loc.id}>
-                  {loc.name.split(' (')[0]}
-                </option>
-              ))}
-            </select>
+            <label className="text-[10px] text-slate-500 font-semibold block mb-0.5">Origin Location</label>
+            <input
+              type="text"
+              value={originInput}
+              onChange={(e) => setOriginInput(e.target.value)}
+              placeholder="e.g. Koramangala, Connaught Place, Times Square"
+              className="w-full p-2 bg-white border border-slate-200 rounded-lg text-[11px] font-medium text-slate-800 focus:outline-none focus:border-gold-500"
+            />
           </div>
 
           <div>
-            <label className="text-[10px] text-slate-500 font-semibold block mb-0.5">Destination</label>
-            <select
-              value={destination}
-              onChange={(e) => setDestination(e.target.value)}
-              className="w-full p-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-medium text-slate-800 focus:outline-none focus:border-gold-400"
-            >
-              {locations.map((loc) => (
-                <option key={loc.id} value={loc.id}>
-                  {loc.name.split(' (')[0]}
-                </option>
-              ))}
-            </select>
+            <label className="text-[10px] text-slate-500 font-semibold block mb-0.5">Destination Location</label>
+            <input
+              type="text"
+              value={destInput}
+              onChange={(e) => setDestInput(e.target.value)}
+              placeholder="e.g. Indiranagar, Cyber City, Brooklyn"
+              className="w-full p-2 bg-white border border-slate-200 rounded-lg text-[11px] font-medium text-slate-800 focus:outline-none focus:border-gold-500"
+            />
           </div>
+        </div>
+
+        {/* Quick Presets */}
+        <div className="flex items-center space-x-1 pt-1 overflow-x-auto">
+          <span className="text-[9px] text-slate-400 uppercase font-bold shrink-0">Presets:</span>
+          {PRESETS.map((p, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => {
+                setOriginInput(p.from);
+                setDestInput(p.to);
+              }}
+              className="px-2 py-0.5 bg-slate-100 hover:bg-gold-400/20 rounded text-[9px] text-slate-600 font-medium whitespace-nowrap cursor-pointer transition-colors"
+            >
+              {p.from.split(' ')[0]} ➔ {p.to.split(' ')[0]}
+            </button>
+          ))}
         </div>
 
         <button
           onClick={handleCalculateRoutes}
           disabled={loading}
-          className="w-full gold-button py-2 rounded-xl text-xs flex items-center justify-center space-x-1.5 font-bold cursor-pointer"
+          className="w-full gold-button py-2 rounded-xl text-xs flex items-center justify-center space-x-1.5 font-bold cursor-pointer mt-1"
         >
           <Navigation className="w-3.5 h-3.5" />
-          <span>{loading ? 'Evaluating Risk Matrix...' : 'Analyze Safety Alternatives'}</span>
+          <span>{loading ? 'Routing Real Roads...' : 'Analyze Real-World Safety Alternatives'}</span>
         </button>
       </section>
 
@@ -273,11 +272,11 @@ export default function App() {
         </div>
 
         <div className="p-1.5 bg-white/70 rounded-lg border border-slate-100 text-[10px] text-slate-600 leading-tight">
-          Generalized cost: <strong className="text-slate-800">J = T_norm + (λ × R_norm)</strong>. Moving λ recalculates real rankings.
+          Generalized cost: <strong className="text-slate-800">J = T_norm + (λ × R_norm)</strong>. Real routes rerank dynamically as λ shifts.
         </div>
       </section>
 
-      {/* Candidate Route Results */}
+      {/* Real Candidate Route Results */}
       <section className="flex-1 space-y-2 mb-3">
         {error && (
           <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-[11px]">
@@ -288,7 +287,7 @@ export default function App() {
         {routes.length > 0 && (
           <div className="space-y-2">
             <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              Evaluated Routes ({routes.length} Alternatives)
+              Real Road Alternatives ({routes.length} Computed)
             </div>
 
             {routes.map((route) => {
@@ -330,11 +329,10 @@ export default function App() {
                     </div>
                   </div>
 
-                  <p className="text-[10px] text-slate-600 mb-1.5 line-clamp-1">
-                    {route.summary}
+                  <p className="text-[10px] text-slate-600 mb-1.5 font-medium leading-relaxed">
+                    🛣️ {route.summary}
                   </p>
 
-                  {/* Metrics Badge Row */}
                   <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[10px] text-slate-500">
                     <span className="flex items-center space-x-1">
                       <Milestone className="w-3 h-3 text-slate-400" />
@@ -354,14 +352,14 @@ export default function App() {
         )}
       </section>
 
-      {/* Continue in Google Maps Action Button (Section 5, Step F) */}
+      {/* Continue in Google Maps Action Button */}
       {selectedRoute && (
         <section className="glass-panel p-3 rounded-2xl border border-gold-400/40 space-y-2 mt-auto">
           <div className="flex items-start space-x-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
             <div>
               <div className="text-[11px] font-bold text-slate-900">
-                {selectedRoute.routeLabel} Recommendation Confirmed
+                {selectedRoute.routeLabel} Real Route Ready
               </div>
               <p className="text-[10px] text-slate-500 leading-tight">
                 {selectedRoute.explanation}
@@ -375,12 +373,12 @@ export default function App() {
             rel="noopener noreferrer"
             className="w-full py-2.5 px-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center justify-center space-x-2 transition-all shadow-md"
           >
-            <span>Continue Route in Google Maps</span>
+            <span>Navigate Route in Google Maps</span>
             <ExternalLink className="w-3.5 h-3.5 text-gold-400" />
           </a>
 
           <p className="text-[9px] text-slate-400 text-center leading-tight">
-            *Google Maps will open for ordinary navigation. Compare recommended corridor with Google Maps' displayed alternatives.
+            *Opens official Google Maps directions for your exact real-world start & destination points.
           </p>
         </section>
       )}
@@ -390,7 +388,7 @@ export default function App() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="glass-panel bg-white p-4 rounded-2xl w-full max-w-xs border border-gold-400 shadow-2xl space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-              <span className="font-serif font-bold text-slate-900 text-xs">Log Road Hazard</span>
+              <span className="font-serif font-bold text-slate-900 text-xs">Log Real Road Hazard</span>
               <button onClick={() => setShowHazardModal(false)} className="text-slate-400 hover:text-slate-700">
                 <X className="w-4 h-4" />
               </button>
@@ -398,7 +396,7 @@ export default function App() {
 
             {hazardSuccess ? (
               <div className="p-3 bg-emerald-50 text-emerald-800 rounded-xl text-xs font-medium text-center">
-                Observation logged! Risk matrix updated.
+                Observation logged! Real risk recalculated.
               </div>
             ) : (
               <form onSubmit={handleReportHazard} className="space-y-2.5">
@@ -430,12 +428,12 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-semibold text-slate-600 block mb-1">Notes</label>
+                  <label className="text-[10px] font-semibold text-slate-600 block mb-1">Notes / Street</label>
                   <textarea
                     rows={2}
                     value={hazardDesc}
                     onChange={(e) => setHazardDesc(e.target.value)}
-                    placeholder="Brief description of location / hazard..."
+                    placeholder="Describe exact street or road landmark..."
                     className="w-full p-1.5 border border-slate-200 rounded-lg text-xs"
                   />
                 </div>
