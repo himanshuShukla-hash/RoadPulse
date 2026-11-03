@@ -27,18 +27,14 @@ function ensureHudExists(): HTMLElement | null {
       z-index: 2147483647 !important;
       width: 390px !important;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-      border-radius: 20px !important;
-      background: linear-gradient(135deg, rgba(15,12,41,0.92) 0%, rgba(48,43,99,0.90) 50%, rgba(36,36,62,0.92) 100%) !important;
-      backdrop-filter: blur(28px) saturate(180%) !important;
-      -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
-      border: 1px solid rgba(212, 175, 55, 0.40) !important;
-      box-shadow:
-        0 24px 60px rgba(0, 0, 0, 0.55),
-        0 0 0 0.5px rgba(255,255,255,0.06),
-        inset 0 1px 0 rgba(255,255,255,0.12),
-        0 0 40px rgba(212, 175, 55, 0.15) !important;
+      border-radius: 18px !important;
+      background: rgba(255, 255, 255, 0.98) !important;
+      backdrop-filter: blur(20px) !important;
+      -webkit-backdrop-filter: blur(20px) !important;
+      border: 1.5px solid #D4AF37 !important;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.24), 0 0 20px rgba(212, 175, 55, 0.3) !important;
       padding: 14px !important;
-      color: #f0f0f0 !important;
+      color: #121417 !important;
       box-sizing: border-box !important;
       display: block !important;
       transition: all 0.3s ease !important;
@@ -93,14 +89,14 @@ function renderHud() {
 
     return `
       <div class="rp-route-card" data-idx="${i}" style="
-        background: ${isSelected ? 'rgba(212, 175, 55, 0.15)' : 'rgba(255, 255, 255, 0.06)'};
-        border: ${isSelected ? '1.5px solid rgba(212,175,55,0.7)' : '1px solid rgba(255,255,255,0.13)'};
+        background: ${isSelected ? 'rgba(212, 175, 55, 0.18)' : 'rgba(241, 245, 249, 0.9)'};
+        border: ${isSelected ? '2px solid #D4AF37' : '1px solid #CBD5E1'};
         border-radius: 12px;
         padding: 10px;
         margin-bottom: 8px;
         cursor: pointer;
         transition: all 0.2s ease;
-        box-shadow: ${isSelected ? '0 4px 16px rgba(212, 175, 55, 0.3), inset 0 1px 0 rgba(255,255,255,0.1)' : 'none'}; backdrop-filter: blur(10px);
+        box-shadow: ${isSelected ? '0 4px 12px rgba(212, 175, 55, 0.25)' : 'none'};
       ">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
           <div style="display: flex; align-items: center; gap: 6px;">
@@ -110,38 +106,38 @@ function renderHud() {
               text-transform: uppercase;
               padding: 2px 7px;
               border-radius: 6px;
-              background: ${r.isRecommended ? 'rgba(212,175,55,0.85)' : 'rgba(100,116,139,0.45)'};
-              color: ${r.isRecommended ? '#0f0c29' : '#e0e0f0'};
+              background: ${r.isRecommended ? '#D4AF37' : '#64748B'};
+              color: ${r.isRecommended ? '#121417' : '#FFFFFF'};
             ">${r.routeLabel}</span>
-            <span style="font-weight: 800; font-size: 14px; color: #f0f0f0;">${r.travel_time_minutes} min</span>
-            <span style="font-size: 10px; color: rgba(200,200,220,0.6);">(${r.distance_km} km)</span>
+            <span style="font-weight: 800; font-size: 14px; color: #0F172A;">${r.travel_time_minutes} min</span>
+            <span style="font-size: 10px; color: #64748B;">(${r.distance_km} km)</span>
           </div>
 
           <div style="
-            background: rgba(255,255,255,0.07);
+            background: #FFFFFF;
             padding: 3px 8px;
             border-radius: 8px;
             border: 1.5px solid ${riskColor};
             font-size: 11px;
             font-weight: 800;
             color: ${riskColor};
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2); backdrop-filter: blur(6px);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
           ">
             Risk: ${r.route_risk}/100
           </div>
         </div>
 
-        <div style="font-size: 10.5px; color: #e8e8f0; font-weight: 700; line-height: 1.35; margin-bottom: 3px;">
+        <div style="font-size: 10.5px; color: #1E293B; font-weight: 700; line-height: 1.35; margin-bottom: 3px;">
           🛣️ ${r.summary}
         </div>
 
-        <div style="font-size: 9.5px; color: rgba(180,180,210,0.7); margin-bottom: 4px;">
+        <div style="font-size: 9.5px; color: #64748B; margin-bottom: 4px;">
           ${r.description}
         </div>
 
-        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 9.5px; color: rgba(180,180,210,0.6); border-top: 1px dashed rgba(212,175,55,0.2); margin-top: 4px; padding-top: 3px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 9.5px; color: #64748B; border-top: 1px dashed rgba(212,175,55,0.3); margin-top: 4px; padding-top: 3px;">
           <span>Potholes: <b>${r.hazards.P}</b> | Near-Miss: <b>${r.hazards.N}</b></span>
-          <span style="font-weight: 700; color: ${isSelected ? '#D4AF37' : 'rgba(180,180,210,0.55)'};">
+          <span style="font-weight: 700; color: ${isSelected ? '#854D0E' : '#64748B'};">
             ${isSelected ? '✔ Active on Google Maps' : 'Click to Route This Path'}
           </span>
         </div>
@@ -151,16 +147,16 @@ function renderHud() {
 
   hud.innerHTML = `
     <!-- Top Branding & Report Button -->
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px solid rgba(212,175,55,0.22); padding-bottom: 6px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px solid rgba(212,175,55,0.3); padding-bottom: 6px;">
       <div style="display: flex; align-items: center; gap: 6px;">
         <div style="width: 24px; height: 24px; border-radius: 6px; background: linear-gradient(135deg, #D4AF37, #AA8232); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 12px; color: #121417;">⚡</div>
-        <div style="font-weight: 800; font-size: 12px; letter-spacing: 0.5px; color: #D4AF37;">ROADPULSE <span style="font-size:9px; font-weight:600; color: rgba(200,200,220,0.55);">ROHINI PILOT</span</div>
+        <div style="font-weight: 800; font-size: 12px; letter-spacing: 0.5px;">ROADPULSE (ROHINI PILOT)</div>
       </div>
 
       <button id="rp-open-report-btn" style="
-        background: rgba(212,175,55,0.15);
-        border: 1px solid rgba(212,175,55,0.40);
-        color: #D4AF37; backdrop-filter: blur(6px);
+        background: #FEF3C7;
+        border: 1px solid #D4AF37;
+        color: #854D0E;
         border-radius: 6px;
         padding: 2.5px 7px;
         font-size: 9px;
@@ -172,18 +168,18 @@ function renderHud() {
     </div>
 
     <!-- IN-HUD SEARCH BARS -->
-    <div style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; padding: 10px; margin-bottom: 8px; backdrop-filter: blur(10px);">
+    <div style="background: #F8FAFC; border: 1.5px solid #E2E8F0; border-radius: 12px; padding: 8px; margin-bottom: 8px;">
       <div style="margin-bottom: 5px;">
-        <div style="font-size: 9px; font-weight: 700; color: rgba(200,200,220,0.65); margin-bottom: 3px; letter-spacing: 0.05em;">📍 ORIGIN (START)</div>
-        <input id="rp-origin-input" type="text" value="${currentOrigin}" style="width: 100%; box-sizing: border-box; padding: 6px 9px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); border-radius: 8px; font-size: 10px; font-weight: 600; color: #f0f0f0; outline: none;" />
+        <div style="font-size: 9px; font-weight: 700; color: #64748B; margin-bottom: 2px;">📍 ORIGIN (START)</div>
+        <input id="rp-origin-input" type="text" value="${currentOrigin}" style="width: 100%; box-sizing: border-box; padding: 5px 8px; border: 1px solid #CBD5E1; border-radius: 7px; font-size: 10px; font-weight: 600; color: #0F172A;" />
       </div>
 
       <div style="margin-bottom: 6px;">
-        <div style="font-size: 9px; font-weight: 700; color: rgba(200,200,220,0.65); margin-bottom: 3px; letter-spacing: 0.05em;">🏁 DESTINATION</div>
-        <input id="rp-dest-input" type="text" value="${currentDestination}" style="width: 100%; box-sizing: border-box; padding: 6px 9px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); border-radius: 8px; font-size: 10px; font-weight: 600; color: #f0f0f0; outline: none;" />
+        <div style="font-size: 9px; font-weight: 700; color: #64748B; margin-bottom: 2px;">🏁 DESTINATION</div>
+        <input id="rp-dest-input" type="text" value="${currentDestination}" style="width: 100%; box-sizing: border-box; padding: 5px 8px; border: 1px solid #CBD5E1; border-radius: 7px; font-size: 10px; font-weight: 600; color: #0F172A;" />
       </div>
 
-      <button id="rp-find-routes-btn" style="width: 100%; background: linear-gradient(135deg, rgba(212,175,55,0.85), rgba(170,130,50,0.90)); border: 1px solid rgba(212,175,55,0.5); color: #0f0c29; font-weight: 800; font-size: 10.5px; border-radius: 8px; padding: 7px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; backdrop-filter: blur(8px); box-shadow: 0 4px 14px rgba(212,175,55,0.3);">
+      <button id="rp-find-routes-btn" style="width: 100%; background: linear-gradient(135deg, #D4AF37, #AA8232); color: #121417; font-weight: 800; font-size: 10.5px; border: none; border-radius: 7px; padding: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;">
         <span>🔍 Search & Fill on Google Maps</span>
       </button>
     </div>
@@ -197,28 +193,27 @@ function renderHud() {
     <div style="
       margin-top: 8px;
       padding-top: 8px;
-      border-top: 1px solid rgba(255,255,255,0.08);
+      border-top: 1px solid rgba(212,175,55,0.3);
       display: flex;
       align-items: center;
       justify-content: space-between;
     ">
       <div style="display: flex; align-items: center; gap: 6px;">
-        <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981; display: inline-block; box-shadow: 0 0 8px #10B981, 0 0 16px rgba(16,185,129,0.35);"></span>
-        <span style="font-size: 10px; font-weight: 700; color: rgba(200,220,200,0.9);">
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981; animation: pulse 1.5s infinite;"></span>
+        <span style="font-size: 10px; font-weight: 700; color: #334155;">
           ${isNavigating ? 'Driving Companion: ACTIVE' : 'Safety Guard Ready'}
         </span>
       </div>
 
       <button id="rp-start-nav-btn" style="
-        background: ${isNavigating ? 'rgba(225,29,72,0.85)' : 'rgba(255,255,255,0.1)'};
+        background: ${isNavigating ? '#E11D48' : '#121417'};
         color: #FFFFFF;
-        border: 1px solid ${isNavigating ? 'rgba(225,29,72,0.6)' : 'rgba(255,255,255,0.2)'};
-        border-radius: 9px;
-        padding: 5px 12px;
+        border: none;
+        border-radius: 8px;
+        padding: 5px 11px;
         font-size: 10px;
         font-weight: 700;
         cursor: pointer;
-        backdrop-filter: blur(8px);
         transition: background 0.2s ease;
       ">
         ${isNavigating ? 'Stop Guard' : 'Start Live Guard'}
@@ -230,14 +225,13 @@ function renderHud() {
       display: ${isNavigating ? 'block' : 'none'};
       margin-top: 8px;
       padding: 8px;
-      background: rgba(245,158,11,0.12);
-      border: 1px solid rgba(245,158,11,0.40);
-      border-radius: 10px;
+      background: #FEF3C7;
+      border: 1px solid #F59E0B;
+      border-radius: 8px;
       font-size: 10px;
-      color: #FCD34D;
+      color: #92400E;
       font-weight: 600;
-      line-height: 1.4;
-      backdrop-filter: blur(6px);
+      line-height: 1.35;
     ">
       ⚠️ <strong>In 400m:</strong> High near-miss intersection & sharp curve ahead (Near Sector 3 M2K Cinema). Maintain safe speed.
     </div>
@@ -247,20 +241,19 @@ function renderHud() {
       display: ${showReportModal ? 'block' : 'none'};
       margin-top: 10px;
       padding: 10px;
-      background: rgba(255,255,255,0.07);
-      border: 1px solid rgba(212,175,55,0.40);
-      border-radius: 14px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      background: #FFFFFF;
+      border: 1.5px solid #D4AF37;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     ">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 6px;">
-        <span style="font-weight: 800; font-size: 11px; color: #D4AF37;">📍 Mark Hazard (Rohini Area)</span>
-        <span id="rp-close-modal" style="cursor: pointer; font-size: 14px; font-weight: bold; color: rgba(200,200,220,0.6);">✕</span>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+        <span style="font-weight: 800; font-size: 11px; color: #121417;">📍 Mark Hazard (Rohini Area)</span>
+        <span id="rp-close-modal" style="cursor: pointer; font-size: 14px; font-weight: bold; color: #64748B;">✕</span>
       </div>
 
       <div style="margin-bottom: 6px;">
-        <label style="font-size: 9px; font-weight: 700; color: rgba(200,200,220,0.7); display: block; margin-bottom: 3px;">Hazard Category</label>
-        <select id="rp-hazard-type" style="width: 100%; padding: 5px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); border-radius: 7px; font-size: 10px; color: #f0f0f0;">
+        <label style="font-size: 9px; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">Hazard Category</label>
+        <select id="rp-hazard-type" style="width: 100%; padding: 4px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 10px;">
           <option value="pothole">🕳️ Pothole / Road Damage</option>
           <option value="dangerous_turn">↪️ Sharp Blind Curve</option>
           <option value="accident_zone">⚠️ Accident-Prone Junction</option>
@@ -270,17 +263,17 @@ function renderHud() {
       </div>
 
       <div style="margin-bottom: 6px;">
-        <label style="font-size: 9px; font-weight: 700; color: rgba(200,200,220,0.7); display: block; margin-bottom: 3px;">Location / Sector Landmark</label>
-        <input id="rp-hazard-loc" type="text" placeholder="e.g. Near M2K Sector 3 Cut" value="Rohini Sector 3 Cut" style="width: 100%; box-sizing: border-box; padding: 5px 7px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); border-radius: 7px; font-size: 10px; color: #f0f0f0; outline: none;" />
+        <label style="font-size: 9px; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">Location / Sector Landmark</label>
+        <input id="rp-hazard-loc" type="text" placeholder="e.g. Near M2K Sector 3 Cut" value="Rohini Sector 3 Cut" style="width: 100%; box-sizing: border-box; padding: 4px 6px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 10px;" />
       </div>
 
       <div style="margin-bottom: 8px;">
-        <label style="font-size: 9px; font-weight: 700; color: rgba(200,200,220,0.7); display: block; margin-bottom: 3px;">📸 Photo Proof Verification</label>
-        <input id="rp-hazard-photo" type="file" accept="image/*" style="width: 100%; font-size: 9px; color: rgba(200,200,220,0.6);" />
-        <div id="rp-photo-preview" style="font-size: 8.5px; color: #6EE7B7; font-weight: bold; margin-top: 3px;">✔ Geotag & timestamp verification active</div>
+        <label style="font-size: 9px; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">📸 Photo Proof Verification</label>
+        <input id="rp-hazard-photo" type="file" accept="image/*" style="width: 100%; font-size: 9px; color: #64748B;" />
+        <div id="rp-photo-preview" style="font-size: 8.5px; color: #15803D; font-weight: bold; margin-top: 2px;">✔ Geotag & timestamp verification active</div>
       </div>
 
-      <button id="rp-submit-hazard-btn" style="width: 100%; background: linear-gradient(135deg, rgba(212,175,55,0.85), rgba(170,130,50,0.90)); border: 1px solid rgba(212,175,55,0.5); color: #0f0c29; font-weight: 800; font-size: 10px; border-radius: 7px; padding: 7px; cursor: pointer; box-shadow: 0 4px 12px rgba(212,175,55,0.25);">
+      <button id="rp-submit-hazard-btn" style="width: 100%; background: linear-gradient(135deg, #D4AF37, #AA8232); color: #121417; font-weight: 800; font-size: 10px; border: none; border-radius: 6px; padding: 6px; cursor: pointer;">
         Submit Verified Hazard Report
       </button>
     </div>
