@@ -6,11 +6,10 @@ let currentDestination = '';
 let currentRoutes = [];
 let userLambda = 0.50;
 let isNavigating = false;
-let watchId = null;
+let isFetching = false;
 
-// Always ensure the HUD container exists on the page
+// Ensure HUD container exists on the page
 function ensureHudExists() {
-  // Only inject if on Google Maps
   if (!window.location.href.includes('google.') && !window.location.href.includes('maps')) return null;
 
   let hud = document.getElementById('roadpulse-gmaps-hud');
@@ -55,13 +54,13 @@ function renderInitialIdleHud(hud) {
     </div>
 
     <div style="font-size: 11px; color: #475569; margin-bottom: 10px; line-height: 1.4;">
-      Search any destination or route in Google Maps. RoadPulse will automatically analyze safety risk scores for each route.
+      Enter origin & destination in Google Maps. RoadPulse will score route safety in real time.
     </div>
 
     <div style="background: rgba(212, 175, 55, 0.1); border: 1px dashed #D4AF37; border-radius: 10px; padding: 8px; font-size: 10px; color: #854D0E; display: flex; align-items: center; justify-content: space-between;">
-      <span>Waiting for route in Google Maps...</span>
+      <span>Ready to evaluate any road...</span>
       <button id="rp-demo-btn" style="background: #121417; color: #FFFFFF; border: none; border-radius: 6px; padding: 4px 8px; font-size: 9px; font-weight: bold; cursor: pointer;">
-        Demo Test
+        Demo Corridor
       </button>
     </div>
   `;
@@ -69,22 +68,24 @@ function renderInitialIdleHud(hud) {
   const demoBtn = document.getElementById('rp-demo-btn');
   if (demoBtn) {
     demoBtn.addEventListener('click', () => {
-      currentOrigin = 'Koramangala 5th Block';
-      currentDestination = 'Indiranagar 100ft Road';
+      currentOrigin = '28.662841, 77.048145';
+      currentDestination = 'University School of Automation Delhi';
       fetchSafetyAnalysis(currentOrigin, currentDestination);
     });
   }
 }
 
-// Parse Google Maps search box & URL
+// Clean and detect route from Google Maps
 function detectGoogleMapsRoute() {
+  if (isFetching) return;
+
   const url = window.location.href;
 
-  // 1. Google Maps directions URL: /dir/Origin/Destination/
+  // 1. URL pattern: /dir/Origin/Destination/
   const dirMatch = url.match(/\/dir\/([^\/]+)\/([^\/]+)/);
   if (dirMatch && dirMatch.length >= 3) {
-    const orig = decodeURIComponent(dirMatch[1].replace(/\+/g, ' '));
-    const dest = decodeURIComponent(dirMatch[2].replace(/\+/g, ' '));
+    const orig = decodeURIComponent(dirMatch[1].replace(/\+/g, ' ')).replace(/@.*/, '').trim();
+    const dest = decodeURIComponent(dirMatch[2].replace(/\+/g, ' ')).replace(/@.*/, '').trim();
     if (orig && dest && (orig !== currentOrigin || dest !== currentDestination)) {
       currentOrigin = orig;
       currentDestination = dest;
@@ -93,7 +94,7 @@ function detectGoogleMapsRoute() {
     return;
   }
 
-  // 2. Google Maps inputs search
+  // 2. Google Maps Search Inputs
   const inputs = document.querySelectorAll('input.tactile-searchbox-input, input.searchboxinput, [aria-label*="Choose starting point"], [aria-label*="Choose destination"]');
   if (inputs.length >= 2) {
     const orig = inputs[0].value.trim();
@@ -110,20 +111,25 @@ async function fetchSafetyAnalysis(origin, destination) {
   const hud = ensureHudExists();
   if (!hud) return;
 
+  isFetching = true;
   hud.innerHTML = `
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px solid rgba(212,175,55,0.3); padding-bottom: 6px;">
       <div style="display: flex; align-items: center; gap: 8px;">
         <span style="font-size: 16px;">⚡</span>
         <div style="font-weight: 800; font-size: 13px;">ROADPULSE SAFETY MATRIX</div>
       </div>
+      <span style="font-size: 9px; font-weight: bold; color: #B45309;">ANALYZING...</span>
     </div>
     <div style="font-size: 11px; color: #B45309; padding: 12px 0; text-align: center; font-weight: 600;">
-      Calculating road risk indices for:<br/>
-      <strong style="color: #121417;">${origin.slice(0, 25)} ➔ ${destination.slice(0, 25)}</strong>...
+      Computing safety indices for:<br/>
+      <strong style="color: #121417;">${origin.slice(0, 22)} ➔ ${destination.slice(0, 22)}</strong>
     </div>
   `;
 
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+
     const res = await fetch('http://localhost:5001/api/routes/alternatives', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -131,16 +137,44 @@ async function fetchSafetyAnalysis(origin, destination) {
         origin_query: origin,
         dest_query: destination,
         lambda: userLambda
-      })
+      }),
+      signal: controller.signal
     });
+    clearTimeout(timeout);
 
     const data = await res.json();
-    if (data.success && data.routes) {
+    if (data.success && data.routes && data.routes.length > 0) {
       currentRoutes = data.routes;
       renderHudRoutes(data.routes);
+    } else {
+      renderErrorHud('Unable to compute risk for this corridor. Try another point.');
     }
   } catch (err) {
     console.error('[RoadPulse] Fetch error', err);
+    renderErrorHud('Engine timed out or server restarting. Click below to retry.');
+  } finally {
+    isFetching = false;
+  }
+}
+
+function renderErrorHud(msg) {
+  const hud = ensureHudExists();
+  if (!hud) return;
+  hud.innerHTML = `
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px solid rgba(212,175,55,0.3); padding-bottom: 6px;">
+      <span style="font-weight: 800; font-size: 12px;">⚡ ROADPULSE</span>
+      <span style="font-size: 9px; color: #E11D48; font-weight: bold;">NOTICE</span>
+    </div>
+    <div style="font-size: 11px; color: #64748B; margin-bottom: 10px;">${msg}</div>
+    <button id="rp-retry-btn" style="width: 100%; background: #121417; color: #FFFFFF; border: none; border-radius: 8px; padding: 6px; font-size: 11px; font-weight: bold; cursor: pointer;">
+      Retry Safety Analysis
+    </button>
+  `;
+  const btn = document.getElementById('rp-retry-btn');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      fetchSafetyAnalysis(currentOrigin, currentDestination);
+    });
   }
 }
 
@@ -179,7 +213,7 @@ function renderHudRoutes(routes) {
             background: #FFFFFF;
             padding: 2px 8px;
             border-radius: 8px;
-            border: 1px solid ${riskColor};
+            border: 1.5px solid ${riskColor};
             font-size: 11px;
             font-weight: 800;
             color: ${riskColor};
@@ -205,6 +239,12 @@ function renderHudRoutes(routes) {
       <span style="font-size: 9px; font-weight: 700; color: #15803D; background: #DCFCE7; padding: 2px 6px; border-radius: 6px;">
         Live Companion
       </span>
+    </div>
+
+    <!-- Origin & Destination Indicator -->
+    <div style="font-size: 10px; color: #64748B; margin-bottom: 8px; line-height: 1.3;">
+      From: <strong style="color: #121417;">${currentOrigin.slice(0, 24)}</strong><br/>
+      To: <strong style="color: #121417;">${currentDestination.slice(0, 24)}</strong>
     </div>
 
     <!-- Routes list with Safety Indices in front of them -->
@@ -255,7 +295,7 @@ function renderHudRoutes(routes) {
       font-weight: 600;
       line-height: 1.3;
     ">
-      ⚠️ In 400m: High near-miss intersection & sudden braking zone ahead. Maintain safe distance.
+      ⚠️ In 400m: High near-miss intersection & sudden braking zone ahead (Nangloi Rd). Maintain safe distance.
     </div>
   `;
 
@@ -268,8 +308,8 @@ function renderHudRoutes(routes) {
   }
 }
 
-// Continuous check on Google Maps page
+// Check every 1.5s
 setInterval(() => {
   ensureHudExists();
   detectGoogleMapsRoute();
-}, 1000);
+}, 1500);
