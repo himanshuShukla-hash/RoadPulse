@@ -1,6 +1,13 @@
-const express = require('express');
-const cors = require('cors');
-const store = require('./store');
+import express from 'express';
+import cors from 'cors';
+import { v4 as uuidv4 } from 'uuid';
+import { DEMO_LOCATIONS, DEMO_NODES, DEMO_EDGES, LOCATION_TO_NODE } from './demoData.js';
+import { 
+  DEFAULT_WEIGHTS, 
+  calculateEdgeRisk, 
+  findCandidateRoutes, 
+  evaluateRoutesWithLambda 
+} from './riskEngine.js';
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -8,142 +15,170 @@ const PORT = process.env.PORT || 5001;
 app.use(cors());
 app.use(express.json());
 
-// Server-Sent Events (SSE) stream for live updates to the frontend
-app.get('/api/stream', (req, res) => {
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.flushHeaders();
-
-  // Send initial connected ping
-  res.write(`data: ${JSON.stringify({ type: 'CONNECTED', timestamp: new Date().toISOString() })}\n\n`);
-
-  const unsubscribe = store.subscribe((event, data) => {
-    res.write(`data: ${JSON.stringify({ type: event, payload: data })}\n\n`);
-  });
-
-  req.on('close', () => {
-    unsubscribe();
-  });
-});
-
-// Get all hotspots / clustered locations
-app.get('/api/locations', (req, res) => {
-  res.json({ success: true, locations: store.getLocations() });
-});
-
-// Get reports with optional filters
-app.get('/api/reports', (req, res) => {
-  const { status, category, location_id } = req.query;
-  const reports = store.getReports({ status, category, location_id });
-  res.json({ success: true, reports });
-});
-
-// Submit a new citizen report (Live dynamic update)
-app.post('/api/reports', (req, res) => {
-  const { category, description, latitude, longitude, address, road_user_type, photo_url, notes } = req.body;
-  if (!latitude || !longitude) {
-    return res.status(400).json({ error: 'Latitude and Longitude are required coordinates.' });
-  }
-
-  const result = store.addReport({
-    category,
-    description,
-    latitude,
-    longitude,
-    address,
-    road_user_type,
-    photo_url,
-    notes
-  });
-
-  res.status(201).json({ success: true, data: result });
-});
-
-// Review status update (Verified, Rejected, Duplicate)
-app.patch('/api/reports/:id/review', (req, res) => {
-  const { status, notes } = req.body;
-  const updated = store.updateReportStatus(req.params.id, status, notes);
-  if (!updated) return res.status(404).json({ error: 'Report not found' });
-  res.json({ success: true, report: updated });
-});
-
-// Safety Audits
-app.get('/api/audits', (req, res) => {
-  res.json({ success: true, audits: store.audits });
-});
-
-app.post('/api/audits', (req, res) => {
-  const audit = store.createAudit(req.body);
-  res.status(201).json({ success: true, audit });
-});
-
-// Interventions
-app.get('/api/interventions', (req, res) => {
-  res.json({ success: true, interventions: store.interventions });
-});
-
-app.post('/api/interventions', (req, res) => {
-  const intervention = store.recordIntervention(req.body);
-  res.status(201).json({ success: true, intervention });
-});
-
-// Reset for clean slate or fresh live demo start
-app.post('/api/demo/reset', (req, res) => {
-  store.clearAll();
-  res.json({ success: true, message: 'All demo data cleared for clean live demonstration.' });
-});
-
-// Trigger a realistic live demo event sequence
-const DEMO_LOCATIONS = [
+// In-memory hazard reports store with preloaded demo reports
+const hazardReports = [
   {
-    address: 'Grand Central Parkway & 7th Ave Blind Corner',
-    lat: 40.7580,
-    lng: -73.9855,
-    category: 'blind_turn',
-    road_user_type: 'two_wheeler',
-    desc: 'High vehicles parked blocking view of approaching northbound cyclists. Vehicles screeching brakes.'
+    id: 'haz_1',
+    category: 'pothole',
+    severity: 70,
+    edge_id: 'e14',
+    latitude: 12.9320,
+    longitude: 77.6325,
+    description: 'Cluster of deep potholes on Lakeview shoreline bend.',
+    status: 'verified',
+    created_at: new Date(Date.now() - 3600000 * 4).toISOString()
   },
   {
-    address: 'University Boulevard Pedestrian Crossing',
-    lat: 40.7592,
-    lng: -73.9840,
-    category: 'pedestrian_conflict',
-    road_user_type: 'pedestrian',
-    desc: 'Right-turning buses almost hitting students on crosswalk during yellow change phase.'
+    id: 'haz_2',
+    category: 'near_miss',
+    severity: 85,
+    edge_id: 'e2',
+    latitude: 12.9385,
+    longitude: 77.6280,
+    description: 'Frequent sudden braking near flyover ramp exit during peak hours.',
+    status: 'verified',
+    created_at: new Date(Date.now() - 3600000 * 12).toISOString()
   },
   {
-    address: 'Metro Hub Transit Underpass',
-    lat: 40.7565,
-    lng: -73.9868,
+    id: 'haz_3',
     category: 'poor_lighting',
-    road_user_type: 'cyclist',
-    desc: 'Flickering streetlights creating sudden blind spot at ramp merge point.'
+    severity: 65,
+    edge_id: 'e3',
+    latitude: 12.9360,
+    longitude: 77.6315,
+    description: 'Broken sodium streetlights along canal curve.',
+    status: 'verified',
+    created_at: new Date(Date.now() - 3600000 * 24).toISOString()
   }
 ];
 
-let demoPointer = 0;
-app.post('/api/demo/simulate', (req, res) => {
-  const sample = DEMO_LOCATIONS[demoPointer % DEMO_LOCATIONS.length];
-  // add slight jitter so multiple clicks generate clustering
-  const jitterLat = sample.lat + (Math.random() - 0.5) * 0.0008;
-  const jitterLng = sample.lng + (Math.random() - 0.5) * 0.0008;
-  demoPointer++;
+// Health Check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', service: 'RoadPulse Safety-Aware Routing API', version: '2.0-mv3' });
+});
 
-  const result = store.addReport({
-    category: sample.category,
-    description: sample.desc,
-    latitude: jitterLat,
-    longitude: jitterLng,
-    address: sample.address,
-    road_user_type: sample.road_user_type,
-    photo_url: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=600&q=80',
-    notes: 'Live citizen broadcast submitted during demo'
+// 1. GET /api/demo/locations - Supported origin/destination hubs
+app.get('/api/demo/locations', (req, res) => {
+  res.json({
+    success: true,
+    data: DEMO_LOCATIONS
   });
+});
 
-  res.json({ success: true, simulated: result });
+// 2. GET /api/roads - Supported road segments and current risk
+app.get('/api/roads', (req, res) => {
+  const roads = DEMO_EDGES.map(e => ({
+    ...e,
+    risk: calculateEdgeRisk(e.hazards, DEFAULT_WEIGHTS)
+  }));
+  res.json({
+    success: true,
+    nodes: DEMO_NODES,
+    roads
+  });
+});
+
+// 3. GET /api/hazards - List all active hazard evidence
+app.get('/api/hazards', (req, res) => {
+  res.json({
+    success: true,
+    count: hazardReports.length,
+    hazards: hazardReports
+  });
+});
+
+// 4. POST /api/hazards - Submit citizen hazard report
+app.post('/api/hazards', (req, res) => {
+  const { category, severity, description, latitude, longitude, edge_id } = req.body;
+
+  if (!category) {
+    return res.status(400).json({ error: 'Hazard category is required' });
+  }
+
+  const validSeverity = Math.max(10, Math.min(100, parseInt(severity) || 50));
+  let targetEdgeId = edge_id || 'e1';
+
+  const newReport = {
+    id: 'haz_' + uuidv4().substring(0, 8),
+    category,
+    severity: validSeverity,
+    edge_id: targetEdgeId,
+    latitude: parseFloat(latitude) || 12.9330,
+    longitude: parseFloat(longitude) || 77.6260,
+    description: description || 'Reported hazard observation via RoadPulse extension',
+    status: 'under_review',
+    created_at: new Date().toISOString()
+  };
+
+  hazardReports.unshift(newReport);
+
+  res.status(201).json({
+    success: true,
+    message: 'Hazard observation logged into RoadPulse safety network',
+    hazard: newReport
+  });
+});
+
+// 5. POST /api/routes/alternatives - Calculate candidate routes & evaluate with lambda
+app.post('/api/routes/alternatives', (req, res) => {
+  const { origin_id, destination_id, lambda } = req.body;
+
+  if (!origin_id || !destination_id) {
+    return res.status(400).json({ error: 'Both origin_id and destination_id are required' });
+  }
+
+  const startNode = LOCATION_TO_NODE[origin_id] || origin_id;
+  const endNode = LOCATION_TO_NODE[destination_id] || destination_id;
+
+  if (startNode === endNode) {
+    return res.status(400).json({ error: 'Origin and destination must be distinct intersections' });
+  }
+
+  // Find genuine candidate graph paths
+  const candidateRoutes = findCandidateRoutes(startNode, endNode, DEFAULT_WEIGHTS, hazardReports);
+
+  if (!candidateRoutes || candidateRoutes.length === 0) {
+    return res.status(404).json({ error: 'No viable connecting routes found in demo network' });
+  }
+
+  // Evaluate candidate routes against user lambda
+  const evaluatedRoutes = evaluateRoutesWithLambda(candidateRoutes, lambda ?? 0.50);
+
+  // Construct Google Maps directions URL for the origin & destination
+  const originObj = DEMO_LOCATIONS.find(l => l.id === origin_id);
+  const destObj = DEMO_LOCATIONS.find(l => l.id === destination_id);
+  const gmapsUrl = (originObj && destObj)
+    ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(originObj.name)}&destination=${encodeURIComponent(destObj.name)}&travelmode=driving`
+    : `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(startNode)}&destination=${encodeURIComponent(endNode)}&travelmode=driving`;
+
+  res.json({
+    success: true,
+    lambda: parseFloat(lambda ?? 0.50),
+    origin: originObj || { id: startNode, name: startNode },
+    destination: destObj || { id: endNode, name: endNode },
+    google_maps_url: gmapsUrl,
+    routes_count: evaluatedRoutes.length,
+    routes: evaluatedRoutes
+  });
+});
+
+// 6. POST /api/routes/recalculate - Fast recalculate existing candidate set when slider moves
+app.post('/api/routes/recalculate', (req, res) => {
+  const { routes, lambda } = req.body;
+
+  if (!routes || !Array.isArray(routes) || routes.length === 0) {
+    return res.status(400).json({ error: 'Existing candidate routes array is required' });
+  }
+
+  const evaluatedRoutes = evaluateRoutesWithLambda(routes, lambda ?? 0.50);
+
+  res.json({
+    success: true,
+    lambda: parseFloat(lambda ?? 0.50),
+    routes: evaluatedRoutes
+  });
 });
 
 app.listen(PORT, () => {
-  console.log(`RoadPulse API running on http://localhost:${PORT}`);
+  console.log(`RoadPulse Routing API running on http://localhost:${PORT}`);
 });
